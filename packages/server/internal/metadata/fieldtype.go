@@ -39,6 +39,24 @@ func (t FieldType) IsValid() bool {
 	return ok
 }
 
+// SortCast returns the Postgres cast to apply when ordering by this field in
+// the JSONB store, so typed fields sort by value rather than lexically.
+// An empty string means sort as text.
+func (t FieldType) SortCast() string {
+	switch t {
+	case FieldNumber, FieldNumeric, FieldRating:
+		return "numeric"
+	case FieldDate:
+		return "date"
+	case FieldDateTime:
+		return "timestamptz"
+	case FieldBoolean:
+		return "boolean"
+	default:
+		return ""
+	}
+}
+
 // PostgresColumnType maps a field type to a Postgres column type. Used by the
 // future v2 engine that promotes hot objects from JSONB storage to real
 // per-workspace tables with native columns (Twenty's approach).
