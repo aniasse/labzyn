@@ -1,0 +1,15 @@
+# Go
+/packages/server/server
+/packages/server/bin/
+*.test
+*.out
+
+# Env
+.env
+.env.local
+*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
