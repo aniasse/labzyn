@@ -43,6 +43,24 @@ export type MetadataField = {
 
 export type MetadataObjectWithFields = MetadataObject & { fields: MetadataField[] };
 
+export type CreateObjectInput = {
+  nameSingular: string;
+  namePlural: string;
+  labelSingular: string;
+  labelPlural: string;
+  icon?: string;
+  description?: string;
+};
+
+export type CreateFieldInput = {
+  name: string;
+  type: FieldType;
+  label: string;
+  isNullable?: boolean;
+  isUnique?: boolean;
+  options?: { value: string; label: string }[];
+};
+
 const BASE = '/api/v1';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -105,6 +123,16 @@ export const api = {
     request<{ data: MetadataObject[] }>('/metadata/objects').then((r) => r.data),
   getObject: (nameSingular: string) =>
     request<MetadataObjectWithFields>(`/metadata/objects/${nameSingular}`),
+  createObject: (input: CreateObjectInput) =>
+    request<MetadataObject>('/metadata/objects', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  createField: (nameSingular: string, input: CreateFieldInput) =>
+    request<MetadataField>(`/metadata/objects/${nameSingular}/fields`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 
   listRecords: (plural: string, params: ListRecordsParams = {}) =>
     request<RecordPage>(`/${plural}${buildQuery(params)}`),

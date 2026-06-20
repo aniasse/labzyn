@@ -4,6 +4,8 @@ import { AppShell } from '@/components/layout/AppShell';
 import { HomePage } from '@/pages/HomePage';
 import { ObjectListPage } from '@/pages/ObjectListPage';
 import { RecordDetailPage } from '@/pages/RecordDetailPage';
+import { DataModelPage } from '@/pages/settings/DataModelPage';
+import { ObjectSettingsPage } from '@/pages/settings/ObjectSettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, staleTime: 30_000 } },
@@ -18,17 +20,13 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/objects/:objectPlural" element={<ObjectListPage />} />
             <Route path="/objects/:objectPlural/:id" element={<RecordDetailPage />} />
-            <Route path="/settings" element={<SettingsStub />} />
+            <Route path="/settings" element={<Navigate to="/settings/objects" replace />} />
+            <Route path="/settings/objects" element={<DataModelPage />} />
+            <Route path="/settings/objects/:nameSingular" element={<ObjectSettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
-  );
-}
-
-function SettingsStub() {
-  return (
-    <div className="p-6 text-sm text-tertiary">Settings — coming in a later milestone.</div>
   );
 }
