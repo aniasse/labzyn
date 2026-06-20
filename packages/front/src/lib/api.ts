@@ -37,6 +37,8 @@ export type MetadataField = {
   isNullable: boolean;
   isUnique: boolean;
   position: number;
+  options?: unknown;
+  defaultValue?: unknown;
 };
 
 export type MetadataObjectWithFields = MetadataObject & { fields: MetadataField[] };
@@ -62,9 +64,56 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export type RecordRow = {
+  id: string;
+  data: Record<string, unknown>;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListRecordsParams = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  order?: 'asc' | 'desc';
+  filters?: Record<string, string>;
+};
+
+export type RecordPage = {
+  data: RecordRow[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+function buildQuery(params: ListRecordsParams): string {
+  const q = new URLSearchParams();
+  if (params.limit != null) q.set('limit', String(params.limit));
+  if (params.offset != null) q.set('offset', String(params.offset));
+  if (params.orderBy) q.set('orderBy', params.orderBy);
+  if (params.order) q.set('order', params.order);
+  for (const [k, v] of Object.entries(params.filters ?? {})) {
+    if (v !== '') q.set(k, v);
+  }
+  const s = q.toString();
+  return s ? `?${s}` : '';
+}
+
 export const api = {
   listObjects: () =>
     request<{ data: MetadataObject[] }>('/metadata/objects').then((r) => r.data),
   getObject: (nameSingular: string) =>
     request<MetadataObjectWithFields>(`/metadata/objects/${nameSingular}`),
+
+  listRecords: (plural: string, params: ListRecordsParams = {}) =>
+    request<RecordPage>(`/${plural}${buildQuery(params)}`),
+  getRecord: (plural: string, id: string) =>
+    request<RecordRow>(`/${plural}/${id}`),
+  createRecord: (plural: string, data: Record<string, unknown>) =>
+    request<RecordRow>(`/${plural}`, { method: 'POST', body: JSON.stringify(data) }),
+  updateRecord: (plural: string, id: string, patch: Record<string, unknown>) =>
+    request<RecordRow>(`/${plural}/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteRecord: (plural: string, id: string) =>
+    request<void>(`/${plural}/${id}`, { method: 'DELETE' }),
 };
