@@ -4,6 +4,12 @@
 *.test
 *.out
 
+# Node / front
+node_modules/
+/packages/front/dist/
+/packages/front/.vite/
+npm-debug.log*
+
 # Env
 .env
 .env.local
