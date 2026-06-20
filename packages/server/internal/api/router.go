@@ -16,19 +16,21 @@ import (
 
 // Server holds dependencies shared by handlers.
 type Server struct {
-	pool *pgxpool.Pool
-	core *core.Repo
-	meta *metadata.Repo
-	rec  *records.Repo
+	pool      *pgxpool.Pool
+	core      *core.Repo
+	meta      *metadata.Repo
+	rec       *records.Repo
+	jwtSecret string
 }
 
 // NewServer builds the HTTP handler tree.
-func NewServer(pool *pgxpool.Pool) http.Handler {
+func NewServer(pool *pgxpool.Pool, jwtSecret string) http.Handler {
 	s := &Server{
-		pool: pool,
-		core: core.NewRepo(pool),
-		meta: metadata.NewRepo(pool),
-		rec:  records.NewRepo(pool),
+		pool:      pool,
+		core:      core.NewRepo(pool),
+		meta:      metadata.NewRepo(pool),
+		rec:       records.NewRepo(pool),
+		jwtSecret: jwtSecret,
 	}
 
 	r := chi.NewRouter()
@@ -39,20 +41,21 @@ func NewServer(pool *pgxpool.Pool) http.Handler {
 
 	r.Get("/healthz", s.handleHealth)
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
-		httpx.JSON(w, http.StatusOK, map[string]string{
-			"service": "labzyn-server",
-			"version": "0.1.0",
-		})
+		httpx.JSON(w, http.StatusOK, map[string]string{"service": "labzyn-server", "version": "0.1.0"})
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
-		// Workspaces are tenant-level: no workspace context required.
-		r.Post("/workspaces", s.handleCreateWorkspace)
-		r.Get("/workspaces", s.handleListWorkspaces)
+		// Public auth endpoints.
+		r.Post("/auth/signup", s.handleSignup)
+		r.Post("/auth/login", s.handleLogin)
 
-		// Everything below operates within a resolved workspace.
+		// Authenticated endpoints.
 		r.Group(func(r chi.Router) {
-			r.Use(s.workspaceCtx)
+			r.Use(s.requireAuth)
+
+			r.Get("/auth/me", s.handleMe)
+			r.Post("/workspaces", s.handleCreateWorkspace)
+			r.Get("/workspaces", s.handleListWorkspaces)
 
 			// Metadata catalog.
 			r.Post("/metadata/objects", s.handleCreateObject)

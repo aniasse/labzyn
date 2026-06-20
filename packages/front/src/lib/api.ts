@@ -1,4 +1,5 @@
 // Thin client for the Labzyn API (proxied to the Go server in dev).
+import { tokenStore, type AuthResponse } from './auth';
 
 export type MetadataObject = {
   id: string;
@@ -63,10 +64,24 @@ export type CreateFieldInput = {
 
 const BASE = '/api/v1';
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = tokenStore.get();
   const res = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   });
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
@@ -76,7 +91,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* keep default */
     }
-    throw new Error(message);
+    throw new ApiError(message, res.status);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -118,7 +133,23 @@ function buildQuery(params: ListRecordsParams): string {
   return s ? `?${s}` : '';
 }
 
+export type MeResponse = {
+  user: { id: string; email: string; firstName: string; lastName: string };
+  workspaces: { id: string; displayName: string; subdomain: string }[];
+  currentWorkspaceId: string;
+};
+
 export const api = {
+  signup: (input: {
+    email: string;
+    password: string;
+    firstName?: string;
+    workspaceName?: string;
+  }) => request<AuthResponse>('/auth/signup', { method: 'POST', body: JSON.stringify(input) }),
+  login: (input: { email: string; password: string }) =>
+    request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(input) }),
+  me: () => request<MeResponse>('/auth/me'),
+
   listObjects: () =>
     request<{ data: MetadataObject[] }>('/metadata/objects').then((r) => r.data),
   getObject: (nameSingular: string) =>

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { NavLink } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/authContext';
 import { getIcon } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +10,7 @@ const navItemBase =
   'flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-secondary transition-colors duration-fast hover:bg-accent';
 
 export function Sidebar() {
+  const { user, logout } = useAuth();
   const { data: objects, isLoading, isError } = useQuery({
     queryKey: ['objects'],
     queryFn: api.listObjects,
@@ -58,6 +61,23 @@ export function Sidebar() {
           })()}
           <span>Settings</span>
         </NavLink>
+
+        <div className="mt-1 flex items-center gap-2 px-2 py-1.5">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-pill bg-accent text-xxs font-semibold uppercase text-secondary">
+            {(user.firstName || user.email).charAt(0)}
+          </div>
+          <span className="min-w-0 flex-1 truncate text-xs text-secondary" title={user.email}>
+            {user.email}
+          </span>
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Log out"
+            className="rounded-sm p-1 text-tertiary transition-colors duration-fast hover:bg-accent hover:text-foreground"
+          >
+            <LogOut size={14} />
+          </button>
+        </div>
       </div>
     </aside>
   );

@@ -42,7 +42,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           api.NewServer(pool),
+		Handler:           api.NewServer(pool, cfg.JWTSecret),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

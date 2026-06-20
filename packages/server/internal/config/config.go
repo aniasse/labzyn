@@ -8,6 +8,7 @@ type Config struct {
 	Port        string
 	DatabaseURL string
 	GatewayURL  string
+	JWTSecret   string
 }
 
 // Load reads configuration from environment variables, applying sane defaults
@@ -17,6 +18,8 @@ func Load() Config {
 		Port:        env("LABZYN_PORT", "4000"),
 		DatabaseURL: env("LABZYN_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/labzyn?sslmode=disable"),
 		GatewayURL:  env("LABZYN_GATEWAY_URL", "http://localhost:8088"),
+		// Dev default; MUST be overridden in production.
+		JWTSecret: env("LABZYN_JWT_SECRET", "dev-insecure-secret-change-me"),
 	}
 }
 
