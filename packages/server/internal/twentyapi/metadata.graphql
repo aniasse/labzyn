@@ -13,6 +13,181 @@ type Query {
   currentUser: User!
   minimalMetadata: MinimalMetadata!
   objects(paging: CursorPaging): ObjectConnection!
+  getViews(objectMetadataId: String, viewTypes: [ViewType!]): [View!]!
+  frontComponents: [FrontComponent!]!
+  findManyLogicFunctions: [LogicFunction!]!
+  navigationMenuItems: [NavigationMenuItem!]!
+}
+
+type FrontComponent {
+  id: UUID!
+  name: String!
+  applicationId: String
+  builtComponentChecksum: String
+  builtComponentPath: String
+  componentName: String
+  createdAt: DateTime!
+  description: String
+  isHeadless: Boolean!
+  sourceComponentPath: String
+  universalIdentifier: String
+  updatedAt: DateTime!
+  usesSdkClient: Boolean!
+}
+
+type LogicFunction {
+  id: UUID!
+  name: String!
+  description: String
+  runtime: String
+  timeoutSeconds: Float
+  executionMode: String
+  sourceHandlerPath: String
+  handlerName: String
+  cronTriggerSettings: JSON
+  databaseEventTriggerSettings: JSON
+  httpRouteTriggerSettings: JSON
+  toolTriggerSettings: JSON
+  workflowActionTriggerSettings: JSON
+  applicationId: String
+  universalIdentifier: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type NavigationMenuItem {
+  id: UUID!
+  type: String!
+  userWorkspaceId: UUID
+  targetRecordId: UUID
+  targetObjectMetadataId: UUID
+  viewId: UUID
+  folderId: UUID
+  name: String
+  link: String
+  icon: String
+  color: String
+  pageLayoutId: UUID
+  position: Float
+  applicationId: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  targetRecordIdentifier: NavigationTargetRecordIdentifier
+}
+
+type NavigationTargetRecordIdentifier {
+  id: UUID!
+  labelIdentifier: String
+  imageIdentifier: String
+}
+
+enum ViewType {
+  TABLE
+  KANBAN
+  CALENDAR
+  FIELDS_WIDGET
+  TABLE_WIDGET
+}
+
+type View {
+  id: UUID!
+  name: String!
+  objectMetadataId: UUID!
+  type: ViewType!
+  key: String
+  icon: String
+  position: Float!
+  isCompact: Boolean!
+  openRecordIn: String
+  kanbanAggregateOperation: String
+  kanbanAggregateOperationFieldMetadataId: UUID
+  mainGroupByFieldMetadataId: UUID
+  shouldHideEmptyGroups: Boolean!
+  anyFieldFilterValue: String
+  calendarFieldMetadataId: UUID
+  calendarLayout: String
+  visibility: String
+  createdByUserWorkspaceId: UUID
+  isActive: Boolean!
+  viewFields: [ViewField!]!
+  viewFieldGroups: [ViewFieldGroup!]!
+  viewFilters: [ViewFilter!]!
+  viewFilterGroups: [ViewFilterGroup!]!
+  viewSorts: [ViewSort!]!
+  viewGroups: [ViewGroup!]!
+}
+
+type ViewField {
+  id: UUID!
+  fieldMetadataId: UUID!
+  viewId: UUID!
+  isVisible: Boolean!
+  position: Float!
+  size: Float!
+  aggregateOperation: String
+  viewFieldGroupId: UUID
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+}
+
+type ViewFieldGroup {
+  id: UUID!
+  name: String!
+  position: Float!
+  isVisible: Boolean!
+  viewId: UUID!
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+  viewFields: [ViewField!]!
+}
+
+type ViewFilter {
+  id: UUID!
+  fieldMetadataId: UUID!
+  operand: String!
+  value: JSON
+  viewFilterGroupId: UUID
+  positionInViewFilterGroup: Float
+  subFieldName: String
+  relationTargetFieldMetadataId: UUID
+  viewId: UUID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+}
+
+type ViewFilterGroup {
+  id: UUID!
+  parentViewFilterGroupId: UUID
+  logicalOperator: String!
+  positionInViewFilterGroup: Float
+  viewId: UUID!
+}
+
+type ViewSort {
+  id: UUID!
+  fieldMetadataId: UUID!
+  direction: String!
+  subFieldName: String
+  viewId: UUID!
+  createdAt: DateTime!
+  deletedAt: DateTime
+  updatedAt: DateTime!
+}
+
+type ViewGroup {
+  id: UUID!
+  isVisible: Boolean!
+  fieldValue: String!
+  position: Float!
+  viewId: UUID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
 }
 
 input CursorPaging {
