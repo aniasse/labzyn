@@ -6,6 +6,8 @@ require (
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/graph-gophers/graphql-go v1.10.2
+	github.com/graphql-go/graphql v0.8.1
+	github.com/graphql-go/handler v0.2.4
 	github.com/jackc/pgx/v5 v5.10.0
 	golang.org/x/crypto v0.53.0
 )

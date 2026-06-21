@@ -20,9 +20,6 @@ var metadataSDL string
 //go:embed pagelayout.graphql
 var pageLayoutSDL string
 
-//go:embed core.graphql
-var coreSDL string
-
 // Server builds and serves Twenty's GraphQL endpoints (core + metadata).
 type Server struct {
 	secret          string
@@ -39,14 +36,15 @@ func NewServer(pool *pgxpool.Pool, jwtSecret string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	coreSchema, err := graphql.ParseSchema(coreSDL, &CoreResolver{core: repo, secret: jwtSecret}, opts...)
+	// Core /graphql is the dynamic per-object records schema (graphql-go).
+	coreHandler, err := BuildCoreHandler(pool)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Server{
 		secret:          jwtSecret,
-		coreHandler:     &relay.Handler{Schema: coreSchema},
+		coreHandler:     coreHandler,
 		metadataHandler: &relay.Handler{Schema: metaSchema},
 	}, nil
 }

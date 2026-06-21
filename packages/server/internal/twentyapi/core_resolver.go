@@ -3,17 +3,7 @@ package twentyapi
 import (
 	"context"
 	"errors"
-
-	"github.com/aniasse/labzyn/server/internal/core"
 )
-
-// CoreResolver is the root resolver for /graphql (currentUser, records later).
-type CoreResolver struct {
-	core   *core.Repo
-	secret string
-}
-
-func (*CoreResolver) Ping() *string { s := "labzyn-core"; return &s }
 
 // ── User graph (resolved via UseFieldResolvers) ──────────────────────────────
 

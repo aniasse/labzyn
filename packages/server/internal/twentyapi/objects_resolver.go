@@ -146,6 +146,10 @@ func (r *MetadataResolver) Objects(ctx context.Context, _ struct{ Paging *cursor
 		node := buildObjectNode(o, fields)
 		edges = append(edges, &objectEdgeT{Node: node})
 	}
+	// Twenty's standard objects (workspaceMember, …).
+	for _, so := range standardObjects() {
+		edges = append(edges, &objectEdgeT{Node: buildObjectNode(so.Object, so.Fields)})
+	}
 
 	f := false
 	empty := ""

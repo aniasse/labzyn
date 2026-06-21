@@ -65,6 +65,28 @@ func (r *Repo) CreateObject(ctx context.Context, workspaceID string, in CreateOb
 	return scanObject(row)
 }
 
+// ListAllObjects returns every active object across all workspaces (used to
+// build the dynamic records GraphQL schema).
+func (r *Repo) ListAllObjects(ctx context.Context) ([]Object, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+objectCols+` FROM metadata.object
+		 WHERE is_active = true ORDER BY created_at ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []Object{}
+	for rows.Next() {
+		o, err := scanObject(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, o)
+	}
+	return out, rows.Err()
+}
+
 // ListObjects returns active objects for a workspace.
 func (r *Repo) ListObjects(ctx context.Context, workspaceID string) ([]Object, error) {
 	rows, err := r.pool.Query(ctx,

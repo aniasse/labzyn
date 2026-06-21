@@ -84,6 +84,16 @@ func (r *MetadataResolver) MinimalMetadata(ctx context.Context) (*minimalMetadat
 			ObjectMetadataId: UUID(o.ID),
 		})
 	}
+	for _, so := range standardObjects() {
+		o := so.Object
+		icon := o.Icon
+		items = append(items, &objectMetadataItemMinimalT{
+			Id: UUID(o.ID), NameSingular: o.NameSingular, NamePlural: o.NamePlural,
+			LabelSingular: o.LabelSingular, LabelPlural: o.LabelPlural, Icon: &icon,
+			IsCustom: false, IsActive: true, IsSystem: true, IsRemote: false,
+		})
+	}
+
 	return &minimalMetadataT{
 		ObjectMetadataItems: items,
 		Views:               views,
