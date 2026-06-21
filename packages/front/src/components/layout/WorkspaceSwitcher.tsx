@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { useAuth } from '@/lib/authContext';
 import { cn } from '@/lib/utils';
+import { Avatar } from '@/ui/Avatar';
 
 export function WorkspaceSwitcher() {
   const { workspaces, currentWorkspaceId, switchWorkspace } = useAuth();
@@ -15,9 +16,7 @@ export function WorkspaceSwitcher() {
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-2 rounded-sm px-1.5 py-1.5 text-left transition-colors duration-fast hover:bg-accent"
       >
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary text-xs font-semibold text-primary-foreground">
-          {(current?.displayName ?? 'L').charAt(0)}
-        </div>
+        <Avatar placeholder={current?.displayName ?? 'Labzyn'} type="squared" size="sm" />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
           {current?.displayName ?? 'Labzyn'}
         </span>

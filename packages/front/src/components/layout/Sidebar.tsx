@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/authContext';
 import { getIcon } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+import { Avatar } from '@/ui/Avatar';
 
 const navItemBase =
   'flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-secondary transition-colors duration-fast hover:bg-accent';
@@ -71,9 +72,7 @@ export function Sidebar() {
         </NavLink>
 
         <div className="mt-1 flex items-center gap-2 px-2 py-1.5">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-pill bg-accent text-xxs font-semibold uppercase text-secondary">
-            {(user.firstName || user.email).charAt(0)}
-          </div>
+          <Avatar placeholder={user.firstName || user.email} type="rounded" size="sm" />
           <span className="min-w-0 flex-1 truncate text-xs text-secondary" title={user.email}>
             {user.email}
           </span>
