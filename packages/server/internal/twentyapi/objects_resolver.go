@@ -3,6 +3,7 @@ package twentyapi
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 
 	"github.com/aniasse/labzyn/server/internal/metadata"
@@ -253,8 +254,50 @@ func userField(f metadata.Field) *fieldT {
 	if len(f.DefaultValue) > 0 {
 		out.DefaultValue = &JSON{Value: f.DefaultValue}
 	}
-	if len(f.Options) > 0 {
-		out.Options = &JSON{Value: f.Options}
+	if opts := twentyOptions(f.Options); opts != nil {
+		out.Options = &JSON{Value: opts}
+	}
+	return out
+}
+
+// optionColors are Twenty ThemeColor names used for SELECT chips.
+var optionColors = []string{"green", "turquoise", "sky", "blue", "purple", "pink", "red", "orange", "yellow", "gray"}
+
+// twentyOptions converts our stored SELECT options (["a"] or [{value,label}])
+// into Twenty's shape: [{id, value, label, color, position}].
+func twentyOptions(raw []byte) []map[string]any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var arr []any
+	if err := json.Unmarshal(raw, &arr); err != nil {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(arr))
+	for i, item := range arr {
+		var value, label string
+		switch v := item.(type) {
+		case string:
+			value, label = v, v
+		case map[string]any:
+			value, _ = v["value"].(string)
+			label, _ = v["label"].(string)
+			if label == "" {
+				label = value
+			}
+		default:
+			continue
+		}
+		if value == "" {
+			continue
+		}
+		out = append(out, map[string]any{
+			"id":       string(synthFieldID(value, label)),
+			"value":    value,
+			"label":    label,
+			"color":    optionColors[i%len(optionColors)],
+			"position": i,
+		})
 	}
 	return out
 }
