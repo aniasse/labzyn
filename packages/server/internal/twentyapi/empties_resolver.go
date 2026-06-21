@@ -80,3 +80,41 @@ func (r *MetadataResolver) FindManyLogicFunctions(_ context.Context) ([]*logicFu
 func (r *MetadataResolver) NavigationMenuItems(_ context.Context) ([]*navigationMenuItemT, error) {
 	return []*navigationMenuItemT{}, nil
 }
+
+type commandMenuItemT struct {
+	Id                                UUID
+	ApplicationId                     *string
+	WorkflowVersionId                 *UUID
+	FrontComponentId                  *UUID
+	FrontComponent                    *frontComponentT
+	EngineComponentKey                *string
+	Label                             *string
+	Icon                              *string
+	ShortLabel                        *string
+	Position                          *float64
+	IsPinned                          *bool
+	Payload                           *commandMenuItemPayloadT
+	HotKeys                           *[]string
+	ConditionalAvailabilityExpression *string
+	AvailabilityType                  *string
+	AvailabilityObjectMetadataId      *UUID
+	PageLayoutId                      *UUID
+	IsActive                          bool
+}
+
+// commandMenuItemPayloadT is the graph-gophers union resolver (never populated).
+type commandMenuItemPayloadT struct{}
+
+func (*commandMenuItemPayloadT) ToPathCommandMenuItemPayload() (*pathPayloadT, bool) {
+	return nil, false
+}
+func (*commandMenuItemPayloadT) ToObjectMetadataCommandMenuItemPayload() (*objMetaPayloadT, bool) {
+	return nil, false
+}
+
+type pathPayloadT struct{ Path *string }
+type objMetaPayloadT struct{ ObjectMetadataItemId *UUID }
+
+func (r *MetadataResolver) CommandMenuItems(_ context.Context) ([]*commandMenuItemT, error) {
+	return []*commandMenuItemT{}, nil
+}

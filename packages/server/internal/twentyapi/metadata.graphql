@@ -17,6 +17,38 @@ type Query {
   frontComponents: [FrontComponent!]!
   findManyLogicFunctions: [LogicFunction!]!
   navigationMenuItems: [NavigationMenuItem!]!
+  commandMenuItems: [CommandMenuItem!]!
+}
+
+type CommandMenuItem {
+  id: UUID!
+  applicationId: String
+  workflowVersionId: UUID
+  frontComponentId: UUID
+  frontComponent: FrontComponent
+  engineComponentKey: String
+  label: String
+  icon: String
+  shortLabel: String
+  position: Float
+  isPinned: Boolean
+  payload: CommandMenuItemPayload
+  hotKeys: [String!]
+  conditionalAvailabilityExpression: String
+  availabilityType: String
+  availabilityObjectMetadataId: UUID
+  pageLayoutId: UUID
+  isActive: Boolean!
+}
+
+union CommandMenuItemPayload = PathCommandMenuItemPayload | ObjectMetadataCommandMenuItemPayload
+
+type PathCommandMenuItemPayload {
+  path: String
+}
+
+type ObjectMetadataCommandMenuItemPayload {
+  objectMetadataItemId: UUID
 }
 
 type FrontComponent {
