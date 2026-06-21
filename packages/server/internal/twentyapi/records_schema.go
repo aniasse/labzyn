@@ -52,22 +52,35 @@ func buildCoreSchema(pool *pgxpool.Pool) (graphql.Schema, error) {
 			Resolve: func(graphql.ResolveParams) (any, error) { return "labzyn-core", nil },
 		},
 	}
+	mutationFields := graphql.Fields{}
 
+	seen := map[string]bool{}
 	for _, o := range objs {
 		fields, err := metaRepo.ListFields(context.Background(), o.ID)
 		if err != nil {
 			return graphql.Schema{}, err
 		}
-		addObjectQuery(queryFields, pageInfo, o, fields, coreRepo, metaRepo, recRepo, tableStore)
+		seen[o.NamePlural] = true
+		addObjectQuery(queryFields, mutationFields, pageInfo, o, fields, coreRepo, metaRepo, recRepo, tableStore)
+	}
+	// Twenty's standard objects (people, companies, workspaceMembers): queries
+	// resolve empty (they are not DB-backed yet).
+	for _, so := range standardObjects() {
+		if seen[so.Object.NamePlural] {
+			continue
+		}
+		addObjectQuery(queryFields, mutationFields, pageInfo, so.Object, so.Fields, coreRepo, metaRepo, recRepo, tableStore)
 	}
 
 	return graphql.NewSchema(graphql.SchemaConfig{
-		Query: graphql.NewObject(graphql.ObjectConfig{Name: "Query", Fields: queryFields}),
+		Query:    graphql.NewObject(graphql.ObjectConfig{Name: "Query", Fields: queryFields}),
+		Mutation: graphql.NewObject(graphql.ObjectConfig{Name: "Mutation", Fields: mutationFields}),
 	})
 }
 
 func addObjectQuery(
 	queryFields graphql.Fields,
+	mutationFields graphql.Fields,
 	pageInfo *graphql.Object,
 	o metadata.Object,
 	fields []metadata.Field,
@@ -158,6 +171,137 @@ func addObjectQuery(
 			return buildConnection(recs, total, opt.Offset), nil
 		},
 	}
+
+	// ── Mutations: create / update / delete ─────────────────────────────────
+	createInput := graphql.NewInputObject(graphql.InputObjectConfig{
+		Name:   typeName + "CreateInput",
+		Fields: inputFieldsFor(fields),
+	})
+	updateInput := graphql.NewInputObject(graphql.InputObjectConfig{
+		Name:   typeName + "UpdateInput",
+		Fields: inputFieldsFor(fields),
+	})
+
+	resolveObj := func(ctx context.Context) (string, metadata.Object, error) {
+		wsID, err := coreRepo.DefaultWorkspaceID(ctx, userIDFromCtx(ctx))
+		if err != nil {
+			return "", metadata.Object{}, err
+		}
+		obj, err := metaRepo.GetObjectByPlural(ctx, wsID, plural)
+		return wsID, obj, err
+	}
+
+	mutationFields["create"+typeName] = &graphql.Field{
+		Type: node,
+		Args: graphql.FieldConfigArgument{"data": &graphql.ArgumentConfig{Type: graphql.NewNonNull(createInput)}},
+		Resolve: func(p graphql.ResolveParams) (any, error) {
+			wsID, obj, err := resolveObj(p.Context)
+			if err != nil {
+				return nil, err
+			}
+			data, id := splitRecordInput(p.Args["data"])
+			var rec records.Record
+			if obj.Storage == "table" {
+				rec, err = tableStore.CreateWithID(p.Context, obj, wsID, id, data)
+			} else {
+				rec, err = recRepo.CreateWithID(p.Context, obj.ID, wsID, id, data)
+			}
+			if err != nil {
+				return nil, err
+			}
+			return recordNode(rec), nil
+		},
+	}
+
+	mutationFields["update"+typeName] = &graphql.Field{
+		Type: node,
+		Args: graphql.FieldConfigArgument{
+			"id":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
+			"data": &graphql.ArgumentConfig{Type: graphql.NewNonNull(updateInput)},
+		},
+		Resolve: func(p graphql.ResolveParams) (any, error) {
+			wsID, obj, err := resolveObj(p.Context)
+			if err != nil {
+				return nil, err
+			}
+			id, _ := p.Args["id"].(string)
+			patch, _ := splitRecordInput(p.Args["data"])
+			var rec records.Record
+			if obj.Storage == "table" {
+				rec, err = tableStore.Update(p.Context, obj, wsID, id, patch)
+			} else {
+				rec, err = recRepo.Update(p.Context, obj.ID, wsID, id, patch)
+			}
+			if err != nil {
+				return nil, err
+			}
+			return recordNode(rec), nil
+		},
+	}
+
+	mutationFields["delete"+typeName] = &graphql.Field{
+		Type: node,
+		Args: graphql.FieldConfigArgument{"id": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)}},
+		Resolve: func(p graphql.ResolveParams) (any, error) {
+			wsID, obj, err := resolveObj(p.Context)
+			if err != nil {
+				return nil, err
+			}
+			id, _ := p.Args["id"].(string)
+			var rec records.Record
+			if obj.Storage == "table" {
+				rec, _ = tableStore.Get(p.Context, obj, wsID, id)
+				err = tableStore.SoftDelete(p.Context, obj, wsID, id)
+			} else {
+				rec, _ = recRepo.Get(p.Context, obj.ID, wsID, id)
+				err = recRepo.SoftDelete(p.Context, obj.ID, wsID, id)
+			}
+			if err != nil {
+				return nil, err
+			}
+			return recordNode(rec), nil
+		},
+	}
+}
+
+// inputFieldsFor builds the input fields for create/update (all optional + id).
+func inputFieldsFor(fields []metadata.Field) graphql.InputObjectConfigFieldMap {
+	m := graphql.InputObjectConfigFieldMap{"id": &graphql.InputObjectFieldConfig{Type: graphql.String}}
+	for _, f := range fields {
+		m[f.Name] = &graphql.InputObjectFieldConfig{Type: gqlType(f.Type)}
+	}
+	return m
+}
+
+// splitRecordInput pops id/system keys from a record input, returning data + id.
+func splitRecordInput(arg any) (map[string]any, string) {
+	in, _ := arg.(map[string]any)
+	data := map[string]any{}
+	id := ""
+	for k, v := range in {
+		switch k {
+		case "id":
+			id, _ = v.(string)
+		case "createdAt", "updatedAt", "deletedAt":
+			// system columns, ignore
+		default:
+			data[k] = v
+		}
+	}
+	return data, id
+}
+
+// recordNode builds a GraphQL node map from a record.
+func recordNode(r records.Record) map[string]any {
+	node := map[string]any{
+		"id":        r.ID,
+		"createdAt": r.CreatedAt.UTC().Format(time.RFC3339),
+		"updatedAt": r.UpdatedAt.UTC().Format(time.RFC3339),
+	}
+	for k, v := range r.Data {
+		node[k] = v
+	}
+	return node
 }
 
 func buildConnection(recs []records.Record, total, offset int) map[string]any {

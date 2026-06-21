@@ -128,6 +128,20 @@ func (r *Repo) Create(ctx context.Context, objectID, workspaceID string, data ma
 	return scanRecord(row)
 }
 
+// CreateWithID inserts a record with a client-provided id (empty = generated).
+func (r *Repo) CreateWithID(ctx context.Context, objectID, workspaceID, id string, data map[string]any) (Record, error) {
+	if data == nil {
+		data = map[string]any{}
+	}
+	if id == "" {
+		return r.Create(ctx, objectID, workspaceID, data)
+	}
+	row := r.pool.QueryRow(ctx,
+		`INSERT INTO core.record (id, object_id, workspace_id, data) VALUES ($1,$2,$3,$4)
+		 RETURNING `+recordCols, id, objectID, workspaceID, data)
+	return scanRecord(row)
+}
+
 // Get returns a single record.
 func (r *Repo) Get(ctx context.Context, objectID, workspaceID, id string) (Record, error) {
 	row := r.pool.QueryRow(ctx,

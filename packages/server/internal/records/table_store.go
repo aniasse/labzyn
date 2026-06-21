@@ -121,6 +121,11 @@ func tableOrderClause(opt ListOptions, fieldNames map[string]struct{}) (string, 
 
 // Create inserts a record into the real table.
 func (s *TableStore) Create(ctx context.Context, obj metadata.Object, workspaceID string, data map[string]any) (Record, error) {
+	return s.CreateWithID(ctx, obj, workspaceID, "", data)
+}
+
+// CreateWithID inserts a record with a client-provided id (empty = generated).
+func (s *TableStore) CreateWithID(ctx context.Context, obj metadata.Object, workspaceID, id string, data map[string]any) (Record, error) {
 	rel, err := ddl.Relation(workspaceID, obj.NameSingular)
 	if err != nil {
 		return Record{}, err
@@ -129,6 +134,11 @@ func (s *TableStore) Create(ctx context.Context, obj metadata.Object, workspaceI
 	cols := []string{}
 	placeholders := []string{}
 	args := []any{}
+	if id != "" {
+		args = append(args, id)
+		cols = append(cols, `"id"`)
+		placeholders = append(placeholders, "$1")
+	}
 	for name, val := range data {
 		col, err := ddl.QuoteIdent(name)
 		if err != nil {
@@ -139,7 +149,7 @@ func (s *TableStore) Create(ctx context.Context, obj metadata.Object, workspaceI
 		placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)))
 	}
 
-	var id string
+	var newID string
 	var q string
 	if len(cols) == 0 {
 		q = fmt.Sprintf(`INSERT INTO %s DEFAULT VALUES RETURNING "id"::text`, rel)
@@ -147,10 +157,10 @@ func (s *TableStore) Create(ctx context.Context, obj metadata.Object, workspaceI
 		q = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s) RETURNING "id"::text`,
 			rel, strings.Join(cols, ", "), strings.Join(placeholders, ", "))
 	}
-	if err := s.pool.QueryRow(ctx, q, args...).Scan(&id); err != nil {
+	if err := s.pool.QueryRow(ctx, q, args...).Scan(&newID); err != nil {
 		return Record{}, err
 	}
-	return s.Get(ctx, obj, workspaceID, id)
+	return s.Get(ctx, obj, workspaceID, newID)
 }
 
 // Get returns one record from the real table.
