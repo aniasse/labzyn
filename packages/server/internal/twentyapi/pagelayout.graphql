@@ -1,0 +1,224 @@
+enum PageLayoutType { RECORD_INDEX RECORD_PAGE DASHBOARD STANDALONE_PAGE }
+
+type PageLayout {
+  id: UUID!
+  name: String!
+  objectMetadataId: UUID
+  type: String!
+  universalIdentifier: String
+  defaultTabToFocusOnMobileAndSidePanelId: UUID
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  tabs: [PageLayoutTab!]!
+}
+
+type PageLayoutTab {
+  id: UUID!
+  applicationId: String
+  title: String!
+  icon: String
+  position: Float!
+  layoutMode: String!
+  widgets: [PageLayoutWidget!]!
+  pageLayoutId: UUID!
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type PageLayoutWidget {
+  id: UUID!
+  applicationId: String
+  title: String!
+  type: String!
+  objectMetadataId: UUID
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  isActive: Boolean!
+  deletedAt: DateTime
+  conditionalDisplay: Boolean
+  conditionalAvailabilityExpression: String
+  gridPosition: WidgetGridPosition!
+  position: PageLayoutWidgetPosition
+  configuration: PageLayoutWidgetConfiguration
+  pageLayoutTabId: UUID!
+}
+
+type WidgetGridPosition { column: Float row: Float columnSpan: Float rowSpan: Float }
+type RatioAggregateConfig { fieldMetadataId: String optionValue: String }
+type StandaloneRichTextBody { blocknote: String markdown: String }
+
+union PageLayoutWidgetPosition = PageLayoutWidgetGridPosition | PageLayoutWidgetVerticalListPosition | PageLayoutWidgetCanvasPosition
+type PageLayoutWidgetGridPosition {
+  layoutMode: String
+  row: String
+  column: String
+  rowSpan: String
+  columnSpan: String
+}
+type PageLayoutWidgetVerticalListPosition {
+  layoutMode: String
+  index: String
+}
+type PageLayoutWidgetCanvasPosition {
+  layoutMode: String
+}
+union PageLayoutWidgetConfiguration = BarChartConfiguration | LineChartConfiguration | PieChartConfiguration | AggregateChartConfiguration | IframeConfiguration | StandaloneRichTextConfiguration | CalendarConfiguration | EmailsConfiguration | EmailThreadConfiguration | FieldConfiguration | FieldRichTextConfiguration | FieldsConfiguration | FilesConfiguration | NotesConfiguration | TasksConfiguration | TimelineConfiguration | ViewConfiguration | RecordTableConfiguration | WorkflowConfiguration | WorkflowRunConfiguration | WorkflowVersionConfiguration | FrontComponentConfiguration
+type BarChartConfiguration {
+  configurationType: String
+  aggregateFieldMetadataId: String
+  aggregateOperation: String
+  primaryAxisGroupByFieldMetadataId: String
+  primaryAxisGroupBySubFieldName: String
+  primaryAxisDateGranularity: String
+  primaryAxisOrderBy: String
+  primaryAxisManualSortOrder: String
+  secondaryAxisGroupByFieldMetadataId: String
+  secondaryAxisGroupBySubFieldName: String
+  secondaryAxisGroupByDateGranularity: String
+  secondaryAxisOrderBy: String
+  secondaryAxisManualSortOrder: String
+  omitNullValues: String
+  axisNameDisplay: String
+  displayDataLabel: String
+  displayLegend: String
+  rangeMin: String
+  rangeMax: String
+  color: String
+  description: String
+  filter: String
+  groupMode: String
+  layout: String
+  isCumulative: String
+  splitMultiValueFields: String
+  timezone: String
+  firstDayOfTheWeek: String
+}
+type LineChartConfiguration {
+  configurationType: String
+  aggregateFieldMetadataId: String
+  aggregateOperation: String
+  primaryAxisGroupByFieldMetadataId: String
+  primaryAxisGroupBySubFieldName: String
+  primaryAxisDateGranularity: String
+  primaryAxisOrderBy: String
+  primaryAxisManualSortOrder: String
+  secondaryAxisGroupByFieldMetadataId: String
+  secondaryAxisGroupBySubFieldName: String
+  secondaryAxisGroupByDateGranularity: String
+  secondaryAxisOrderBy: String
+  secondaryAxisManualSortOrder: String
+  omitNullValues: String
+  axisNameDisplay: String
+  displayDataLabel: String
+  displayLegend: String
+  rangeMin: String
+  rangeMax: String
+  color: String
+  description: String
+  filter: String
+  isStacked: String
+  isCumulative: String
+  splitMultiValueFields: String
+  timezone: String
+  firstDayOfTheWeek: String
+}
+type PieChartConfiguration {
+  configurationType: String
+  groupByFieldMetadataId: String
+  aggregateFieldMetadataId: String
+  aggregateOperation: String
+  groupBySubFieldName: String
+  dateGranularity: String
+  orderBy: String
+  manualSortOrder: String
+  displayDataLabel: String
+  showCenterMetric: String
+  displayLegend: String
+  hideEmptyCategory: String
+  splitMultiValueFields: String
+  color: String
+  description: String
+  filter: String
+  timezone: String
+  firstDayOfTheWeek: String
+}
+type AggregateChartConfiguration {
+  configurationType: String
+  aggregateFieldMetadataId: String
+  aggregateOperation: String
+  label: String
+  displayDataLabel: String
+  numberFormat: String
+  description: String
+  filter: String
+  prefix: String
+  suffix: String
+  timezone: String
+  firstDayOfTheWeek: String
+  ratioAggregateConfig: RatioAggregateConfig
+}
+type IframeConfiguration {
+  configurationType: String
+  url: String
+}
+type StandaloneRichTextConfiguration {
+  configurationType: String
+  body: StandaloneRichTextBody
+}
+type CalendarConfiguration {
+  configurationType: String
+}
+type EmailsConfiguration {
+  configurationType: String
+}
+type EmailThreadConfiguration {
+  configurationType: String
+}
+type FieldConfiguration {
+  configurationType: String
+  fieldDisplayMode: String
+  fieldMetadataId: String
+  viewId: String
+}
+type FieldRichTextConfiguration {
+  configurationType: String
+}
+type FieldsConfiguration {
+  configurationType: String
+  viewId: String
+  newFieldDefaultVisibility: String
+  shouldAllowUserToSeeHiddenFields: String
+}
+type FilesConfiguration {
+  configurationType: String
+}
+type NotesConfiguration {
+  configurationType: String
+}
+type TasksConfiguration {
+  configurationType: String
+}
+type TimelineConfiguration {
+  configurationType: String
+}
+type ViewConfiguration {
+  configurationType: String
+}
+type RecordTableConfiguration {
+  configurationType: String
+  viewId: String
+}
+type WorkflowConfiguration {
+  configurationType: String
+}
+type WorkflowRunConfiguration {
+  configurationType: String
+}
+type WorkflowVersionConfiguration {
+  configurationType: String
+}
+type FrontComponentConfiguration {
+  configurationType: String
+  frontComponentId: String
+}

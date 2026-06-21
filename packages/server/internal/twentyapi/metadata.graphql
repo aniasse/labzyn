@@ -18,6 +18,7 @@ type Query {
   findManyLogicFunctions: [LogicFunction!]!
   navigationMenuItems: [NavigationMenuItem!]!
   commandMenuItems: [CommandMenuItem!]!
+  getPageLayouts(pageLayoutType: PageLayoutType): [PageLayout!]!
 }
 
 type CommandMenuItem {

@@ -17,6 +17,9 @@ import (
 //go:embed metadata.graphql
 var metadataSDL string
 
+//go:embed pagelayout.graphql
+var pageLayoutSDL string
+
 //go:embed core.graphql
 var coreSDL string
 
@@ -32,7 +35,7 @@ func NewServer(pool *pgxpool.Pool, jwtSecret string) (*Server, error) {
 	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers(), graphql.UseStringDescriptions()}
 	repo := core.NewRepo(pool)
 
-	metaSchema, err := graphql.ParseSchema(metadataSDL, &MetadataResolver{core: repo, meta: metadata.NewRepo(pool), secret: jwtSecret}, opts...)
+	metaSchema, err := graphql.ParseSchema(metadataSDL+"\n"+pageLayoutSDL, &MetadataResolver{core: repo, meta: metadata.NewRepo(pool), secret: jwtSecret}, opts...)
 	if err != nil {
 		return nil, err
 	}
