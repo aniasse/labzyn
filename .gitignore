@@ -19,3 +19,6 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# Reference copies (not part of the build)
+/reference/

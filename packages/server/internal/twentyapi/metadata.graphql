@@ -1,0 +1,88 @@
+scalar UUID
+scalar DateTime
+scalar JSON
+
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Query {
+  getPublicWorkspaceDataByDomain(origin: String): PublicWorkspaceData!
+  checkUserExists(email: String!, captchaToken: String): CheckUserExist!
+}
+
+type CheckUserExist {
+  exists: Boolean!
+  availableWorkspacesCount: Float!
+  isEmailVerified: Boolean!
+}
+
+type Mutation {
+  getLoginTokenFromCredentials(email: String!, password: String!, captchaToken: String, locale: String, verifyEmailRedirectPath: String, origin: String!): LoginToken!
+  getAuthTokensFromLoginToken(loginToken: String!, origin: String!): AuthTokens!
+  trackAnalytics(type: AnalyticsType!, name: String, event: String, properties: JSON): Analytics!
+}
+
+type PublicWorkspaceData {
+  id: UUID!
+  authProviders: AuthProviders!
+  authBypassProviders: AuthBypassProviders
+  logo: String
+  displayName: String
+  workspaceUrls: WorkspaceUrls!
+}
+
+type AuthProviders {
+  sso: [SSOIdentityProvider!]!
+  google: Boolean!
+  magicLink: Boolean!
+  password: Boolean!
+  microsoft: Boolean!
+}
+
+type AuthBypassProviders {
+  google: Boolean!
+  password: Boolean!
+  microsoft: Boolean!
+}
+
+type SSOIdentityProvider {
+  id: String!
+  name: String!
+  type: String!
+  status: String!
+  issuer: String!
+}
+
+type WorkspaceUrls {
+  customUrl: String
+  subdomainUrl: String!
+}
+
+type AuthToken {
+  token: String!
+  expiresAt: DateTime!
+}
+
+type AuthTokenPair {
+  accessOrWorkspaceAgnosticToken: AuthToken!
+  refreshToken: AuthToken!
+}
+
+type LoginToken {
+  loginToken: AuthToken!
+}
+
+type AuthTokens {
+  tokens: AuthTokenPair!
+}
+
+type Analytics {
+  success: Boolean!
+}
+
+enum AnalyticsType {
+  PAGEVIEW
+  TRACK
+}

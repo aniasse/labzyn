@@ -12,6 +12,7 @@ import (
 	"github.com/aniasse/labzyn/server/internal/llm"
 	"github.com/aniasse/labzyn/server/internal/metadata"
 	"github.com/aniasse/labzyn/server/internal/records"
+	"github.com/aniasse/labzyn/server/internal/twentyapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -54,6 +55,15 @@ func NewServer(pool *pgxpool.Pool, jwtSecret, gatewayURL string, llmClient *llm.
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
 		httpx.JSON(w, http.StatusOK, map[string]string{"service": "labzyn-server", "version": "0.1.0"})
 	})
+
+	// Twenty frontend contract: REST /client-config + GraphQL /graphql & /metadata.
+	tw, err := twentyapi.NewServer(pool, jwtSecret)
+	if err != nil {
+		panic("twentyapi schema build failed: " + err.Error())
+	}
+	r.Get("/client-config", twentyapi.HandleClientConfig)
+	r.Handle("/graphql", tw.CoreHandler())
+	r.Handle("/metadata", tw.MetadataHandler())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public auth endpoints.
