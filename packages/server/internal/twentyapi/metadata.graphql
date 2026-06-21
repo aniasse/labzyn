@@ -10,6 +10,7 @@ schema {
 type Query {
   getPublicWorkspaceDataByDomain(origin: String): PublicWorkspaceData!
   checkUserExists(email: String!, captchaToken: String): CheckUserExist!
+  currentUser: User!
 }
 
 type CheckUserExist {
@@ -85,4 +86,239 @@ type Analytics {
 enum AnalyticsType {
   PAGEVIEW
   TRACK
+}
+
+# ── currentUser graph ──
+type User {
+  id: UUID!
+  firstName: String!
+  lastName: String!
+  email: String!
+  hasPassword: Boolean!
+  canAccessFullAdminPanel: Boolean!
+  canImpersonate: Boolean!
+  supportUserHash: String
+  onboardingStatus: String
+  workspaceMember: WorkspaceMember
+  workspaceMembers: [WorkspaceMember!]!
+  deletedWorkspaceMembers: [DeletedWorkspaceMember!]!
+  currentUserWorkspace: UserWorkspace
+  currentWorkspace: Workspace
+  availableWorkspaces: AvailableWorkspaces!
+  userVars: JSON
+}
+
+type FullName {
+  firstName: String!
+  lastName: String!
+}
+
+type WorkspaceMember {
+  id: UUID!
+  name: FullName!
+  colorScheme: String!
+  avatarUrl: String
+  locale: String
+  userEmail: String!
+  userWorkspaceId: UUID
+  timeZone: String
+  dateFormat: String
+  timeFormat: String
+  calendarStartDay: Int
+  numberFormat: String
+}
+
+type DeletedWorkspaceMember {
+  id: UUID!
+  name: FullName!
+  avatarUrl: String
+  userEmail: String!
+}
+
+type UserWorkspace {
+  id: UUID!
+  permissionFlags: [String!]!
+  objectsPermissions: [ObjectPermission!]!
+  twoFactorAuthenticationMethodSummary: [TwoFactorAuthenticationMethodSummary!]!
+}
+
+type TwoFactorAuthenticationMethodSummary {
+  twoFactorAuthenticationMethodId: String!
+  status: String!
+  strategy: String!
+}
+
+type ObjectPermission {
+  objectMetadataId: UUID!
+  canReadObjectRecords: Boolean
+  canUpdateObjectRecords: Boolean
+  canSoftDeleteObjectRecords: Boolean
+  canDestroyObjectRecords: Boolean
+  restrictedFields: JSON
+  rowLevelPermissionPredicates: [RowLevelPermissionPredicate!]!
+  rowLevelPermissionPredicateGroups: [RowLevelPermissionPredicateGroup!]!
+}
+
+type RowLevelPermissionPredicate {
+  id: String!
+  fieldMetadataId: String!
+  objectMetadataId: String!
+  operand: String!
+  subFieldName: String
+  workspaceMemberFieldMetadataId: String
+  workspaceMemberSubFieldName: String
+  rowLevelPermissionPredicateGroupId: String
+  positionInRowLevelPermissionPredicateGroup: Float
+  roleId: String!
+  value: JSON
+}
+
+type RowLevelPermissionPredicateGroup {
+  id: String!
+  parentRowLevelPermissionPredicateGroupId: String
+  logicalOperator: String!
+  positionInRowLevelPermissionPredicateGroup: Float
+  roleId: String!
+  objectMetadataId: String!
+}
+
+type Workspace {
+  id: UUID!
+  displayName: String
+  logo: String
+  inviteHash: String
+  allowImpersonation: Boolean!
+  activationStatus: String!
+  isPublicInviteLinkEnabled: Boolean!
+  isGoogleAuthEnabled: Boolean!
+  isMicrosoftAuthEnabled: Boolean!
+  isPasswordAuthEnabled: Boolean!
+  isGoogleAuthBypassEnabled: Boolean!
+  isMicrosoftAuthBypassEnabled: Boolean!
+  isPasswordAuthBypassEnabled: Boolean!
+  subdomain: String!
+  customDomain: String
+  hasValidSignedEnterpriseKey: Boolean!
+  hasValidEnterpriseValidityToken: Boolean!
+  workspaceCustomApplication: Application
+  installedApplications: [Application!]!
+  isCustomDomainEnabled: Boolean!
+  workspaceUrls: WorkspaceUrls!
+  featureFlags: [FeatureFlag!]!
+  metadataVersion: Float!
+  currentBillingSubscription: BillingSubscription
+  billingSubscriptions: [BillingSubscription!]!
+  billingEntitlements: [BillingEntitlement!]!
+  workspaceMembersCount: Float
+  defaultRole: Role
+  fastModel: String
+  smartModel: String
+  aiAdditionalInstructions: String
+  enabledAiModelIds: [String!]!
+  useRecommendedModels: Boolean!
+  isTwoFactorAuthenticationEnforced: Boolean!
+  trashRetentionDays: Float
+  eventLogRetentionDays: Float
+  editableProfileFields: [String!]!
+  isInternalMessagesImportEnabled: Boolean!
+}
+
+type Application {
+  id: UUID!
+  name: String!
+  universalIdentifier: String!
+  logo: String
+}
+
+type FeatureFlag {
+  key: String!
+  value: Boolean!
+}
+
+type BillingEntitlement {
+  key: String!
+  value: Boolean!
+}
+
+type Role {
+  id: UUID!
+  label: String!
+  description: String
+  icon: String
+  canUpdateAllSettings: Boolean!
+  canAccessAllTools: Boolean!
+  isEditable: Boolean!
+  canReadAllObjectRecords: Boolean!
+  canUpdateAllObjectRecords: Boolean!
+  canSoftDeleteAllObjectRecords: Boolean!
+  canDestroyAllObjectRecords: Boolean!
+  canBeAssignedToUsers: Boolean!
+  canBeAssignedToAgents: Boolean!
+  canBeAssignedToApiKeys: Boolean!
+}
+
+type AvailableWorkspaces {
+  availableWorkspacesForSignIn: [AvailableWorkspace!]!
+  availableWorkspacesForSignUp: [AvailableWorkspace!]!
+}
+
+type AvailableWorkspace {
+  id: UUID!
+  displayName: String
+  loginToken: String
+  inviteHash: String
+  personalInviteToken: String
+  workspaceUrls: WorkspaceUrls!
+  logo: String
+  sso: [SSOConnection!]!
+}
+
+type SSOConnection {
+  type: String!
+  id: UUID!
+  issuer: String!
+  name: String!
+  status: String!
+}
+
+type BillingSubscription {
+  id: UUID!
+  status: String!
+  interval: String
+  metadata: JSON
+  currentPeriodEnd: Float
+  phases: [BillingSubscriptionSchedulePhase!]!
+  billingSubscriptionItems: [BillingSubscriptionItem!]!
+}
+
+type BillingSubscriptionSchedulePhase {
+  start_date: Float
+  end_date: Float
+  items: [BillingSubscriptionSchedulePhaseItem!]!
+}
+
+type BillingSubscriptionSchedulePhaseItem {
+  price: String
+  quantity: Float
+}
+
+type BillingSubscriptionItem {
+  id: UUID!
+  hasReachedCurrentPeriodCap: Boolean!
+  quantity: Float
+  stripePriceId: String
+  billingProduct: BillingProduct
+}
+
+type BillingProduct {
+  name: String!
+  description: String!
+  images: [String!]!
+  metadata: BillingProductMetadata
+}
+
+type BillingProductMetadata {
+  productKey: String
+  planKey: String
+  priceUsageBased: String
 }
