@@ -8,6 +8,7 @@ import (
 
 	"github.com/aniasse/labzyn/server/internal/auth"
 	"github.com/aniasse/labzyn/server/internal/core"
+	"github.com/aniasse/labzyn/server/internal/metadata"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -31,7 +32,7 @@ func NewServer(pool *pgxpool.Pool, jwtSecret string) (*Server, error) {
 	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers(), graphql.UseStringDescriptions()}
 	repo := core.NewRepo(pool)
 
-	metaSchema, err := graphql.ParseSchema(metadataSDL, &MetadataResolver{core: repo, secret: jwtSecret}, opts...)
+	metaSchema, err := graphql.ParseSchema(metadataSDL, &MetadataResolver{core: repo, meta: metadata.NewRepo(pool), secret: jwtSecret}, opts...)
 	if err != nil {
 		return nil, err
 	}

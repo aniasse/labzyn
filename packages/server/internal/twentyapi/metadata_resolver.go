@@ -8,12 +8,87 @@ import (
 
 	"github.com/aniasse/labzyn/server/internal/auth"
 	"github.com/aniasse/labzyn/server/internal/core"
+	"github.com/aniasse/labzyn/server/internal/metadata"
 )
 
 // MetadataResolver is the root resolver for the /metadata GraphQL endpoint.
 type MetadataResolver struct {
 	core   *core.Repo
+	meta   *metadata.Repo
 	secret string
+}
+
+type minimalMetadataT struct {
+	ObjectMetadataItems []*objectMetadataItemMinimalT
+	Views               []*minimalViewT
+	CollectionHashes    []*collectionHashT
+}
+
+type objectMetadataItemMinimalT struct {
+	Id            UUID
+	NameSingular  string
+	NamePlural    string
+	LabelSingular string
+	LabelPlural   string
+	Icon          *string
+	IsCustom      bool
+	IsActive      bool
+	IsSystem      bool
+	IsRemote      bool
+}
+
+type minimalViewT struct {
+	Id               UUID
+	Type             string
+	Key              *string
+	ObjectMetadataId UUID
+}
+
+type collectionHashT struct {
+	CollectionName string
+	Hash           string
+}
+
+// MinimalMetadata returns the lightweight object/view catalog the frontend
+// uses to bootstrap its metadata store (and render the sidebar).
+func (r *MetadataResolver) MinimalMetadata(ctx context.Context) (*minimalMetadataT, error) {
+	wsID, err := r.core.DefaultWorkspaceID(ctx, userIDFromCtx(ctx))
+	if err != nil {
+		return nil, err
+	}
+	objs, err := r.meta.ListObjects(ctx, wsID)
+	if err != nil {
+		return nil, err
+	}
+	items := []*objectMetadataItemMinimalT{}
+	views := []*minimalViewT{}
+	for _, o := range objs {
+		icon := o.Icon
+		items = append(items, &objectMetadataItemMinimalT{
+			Id:            UUID(o.ID),
+			NameSingular:  o.NameSingular,
+			NamePlural:    o.NamePlural,
+			LabelSingular: o.LabelSingular,
+			LabelPlural:   o.LabelPlural,
+			Icon:          &icon,
+			IsCustom:      !o.IsSystem,
+			IsActive:      o.IsActive,
+			IsSystem:      o.IsSystem,
+			IsRemote:      false,
+		})
+		key := "INDEX"
+		views = append(views, &minimalViewT{
+			Id:               UUID(o.ID),
+			Type:             "table",
+			Key:              &key,
+			ObjectMetadataId: UUID(o.ID),
+		})
+	}
+	return &minimalMetadataT{
+		ObjectMetadataItems: items,
+		Views:               views,
+		CollectionHashes:    []*collectionHashT{},
+	}, nil
 }
 
 // ── GraphQL output types (resolved via UseFieldResolvers) ────────────────────

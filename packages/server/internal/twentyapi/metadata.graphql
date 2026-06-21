@@ -11,6 +11,157 @@ type Query {
   getPublicWorkspaceDataByDomain(origin: String): PublicWorkspaceData!
   checkUserExists(email: String!, captchaToken: String): CheckUserExist!
   currentUser: User!
+  minimalMetadata: MinimalMetadata!
+  objects(paging: CursorPaging): ObjectConnection!
+}
+
+input CursorPaging {
+  first: Int
+  after: String
+  last: Int
+  before: String
+}
+
+type ObjectConnection {
+  edges: [ObjectEdge!]!
+  pageInfo: PageInfo!
+}
+
+type ObjectEdge {
+  node: Object!
+}
+
+type PageInfo {
+  hasNextPage: Boolean
+  hasPreviousPage: Boolean
+  startCursor: String
+  endCursor: String
+}
+
+type Object {
+  id: UUID!
+  universalIdentifier: String
+  nameSingular: String!
+  namePlural: String!
+  labelSingular: String!
+  labelPlural: String!
+  color: String
+  description: String
+  icon: String
+  isCustom: Boolean!
+  isRemote: Boolean!
+  isActive: Boolean!
+  isSystem: Boolean!
+  isUIEditable: Boolean!
+  isUICreatable: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  labelIdentifierFieldMetadataId: UUID
+  imageIdentifierFieldMetadataId: UUID
+  applicationId: String
+  shortcut: String
+  isLabelSyncedWithName: Boolean!
+  isSearchable: Boolean!
+  duplicateCriteria: JSON
+  indexMetadataList: [IndexMetadata!]!
+  fieldsList: [Field!]!
+}
+
+type IndexMetadata {
+  id: UUID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  name: String!
+  indexWhereClause: String
+  indexType: String!
+  isUnique: Boolean!
+  isCustom: Boolean!
+  indexFieldMetadataList: [IndexFieldMetadata!]!
+}
+
+type IndexFieldMetadata {
+  id: UUID!
+  fieldMetadataId: UUID!
+  subFieldName: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  order: Int!
+}
+
+type Field {
+  id: UUID!
+  universalIdentifier: String
+  type: String!
+  name: String!
+  label: String!
+  description: String
+  icon: String
+  isCustom: Boolean!
+  isActive: Boolean!
+  isSystem: Boolean!
+  isUIEditable: Boolean!
+  isNullable: Boolean!
+  isUnique: Boolean
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  defaultValue: JSON
+  options: JSON
+  settings: JSON
+  isLabelSyncedWithName: Boolean!
+  morphId: String
+  applicationId: String
+  relation: FieldRelation
+  morphRelations: [FieldRelation!]!
+}
+
+type FieldRelation {
+  type: String!
+  sourceObjectMetadata: RelationObjectRef!
+  targetObjectMetadata: RelationObjectRef!
+  sourceFieldMetadata: RelationFieldRef!
+  targetFieldMetadata: RelationFieldRef!
+}
+
+type RelationObjectRef {
+  id: UUID!
+  nameSingular: String!
+  namePlural: String!
+}
+
+type RelationFieldRef {
+  id: UUID!
+  name: String!
+}
+
+type MinimalMetadata {
+  objectMetadataItems: [ObjectMetadataItemMinimal!]!
+  views: [MinimalView!]!
+  collectionHashes: [CollectionHash!]!
+}
+
+type ObjectMetadataItemMinimal {
+  id: UUID!
+  nameSingular: String!
+  namePlural: String!
+  labelSingular: String!
+  labelPlural: String!
+  icon: String
+  isCustom: Boolean!
+  isActive: Boolean!
+  isSystem: Boolean!
+  isRemote: Boolean!
+}
+
+type MinimalView {
+  id: UUID!
+  type: String!
+  key: String
+  objectMetadataId: UUID!
+}
+
+type CollectionHash {
+  collectionName: String!
+  hash: String!
 }
 
 type CheckUserExist {
