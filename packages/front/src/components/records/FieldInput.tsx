@@ -2,6 +2,7 @@ import type { MetadataField } from '@/lib/api';
 import { coerceInput, inputKind, selectOptions } from '@/lib/fields';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Checkbox } from '@/ui/Checkbox';
 
 type Props = {
   field: MetadataField;
@@ -44,12 +45,12 @@ export function FieldInput({ field, value, onChange, autoFocus, onCommit, onCanc
 
   if (kind === 'boolean') {
     return (
-      <input
-        type="checkbox"
-        autoFocus={autoFocus}
+      <Checkbox
         checked={value === true}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-[var(--primary)]"
+        onCheckedChange={(v) => {
+          onChange(v);
+          onCommit?.();
+        }}
       />
     );
   }
