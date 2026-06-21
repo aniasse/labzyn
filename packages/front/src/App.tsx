@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tan
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { api } from '@/lib/api';
-import { tokenStore } from '@/lib/auth';
+import { tokenStore, workspaceStore } from '@/lib/auth';
 import { AuthContext } from '@/lib/authContext';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -35,11 +35,19 @@ function AuthGate() {
 function AuthedApp({ onLogout }: { onLogout: () => void }) {
   const qc = useQueryClient();
   const { data: me, isLoading, isError } = useQuery({ queryKey: ['me'], queryFn: api.me });
+  const [currentWorkspaceId, setCurrentWorkspaceId] = useState(() => workspaceStore.get() ?? '');
 
   const logout = () => {
     tokenStore.clear();
+    workspaceStore.clear();
     qc.clear();
     onLogout();
+  };
+
+  const switchWorkspace = (id: string) => {
+    workspaceStore.set(id);
+    setCurrentWorkspaceId(id);
+    qc.clear(); // drop all cached data scoped to the previous workspace
   };
 
   // Token invalid/expired → drop it and show login.
@@ -48,12 +56,32 @@ function AuthedApp({ onLogout }: { onLogout: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isError]);
 
+  // Default the active workspace to the server's choice on first load.
+  useEffect(() => {
+    if (me && !currentWorkspaceId) {
+      const id = me.currentWorkspaceId || me.workspaces[0]?.id || '';
+      if (id) {
+        workspaceStore.set(id);
+        setCurrentWorkspaceId(id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me]);
+
   if (isLoading || !me) {
     return <div className="flex h-full items-center justify-center text-sm text-tertiary">Loading…</div>;
   }
 
   return (
-    <AuthContext.Provider value={{ user: me.user, workspaces: me.workspaces, logout }}>
+    <AuthContext.Provider
+      value={{
+        user: me.user,
+        workspaces: me.workspaces,
+        currentWorkspaceId: currentWorkspaceId || me.currentWorkspaceId,
+        switchWorkspace,
+        logout,
+      }}
+    >
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />

@@ -104,6 +104,74 @@ func (r *Repo) GetObjectByPlural(ctx context.Context, workspaceID, name string) 
 	return r.getObjectBy(ctx, workspaceID, "name_plural", name)
 }
 
+// UpdateObjectInput carries editable object attributes (nil = unchanged).
+type UpdateObjectInput struct {
+	LabelSingular *string
+	LabelPlural   *string
+	Icon          *string
+	Description   *string
+}
+
+// UpdateObject edits an object's labels/icon/description.
+func (r *Repo) UpdateObject(ctx context.Context, workspaceID, nameSingular string, in UpdateObjectInput) (Object, error) {
+	row := r.pool.QueryRow(ctx,
+		`UPDATE metadata.object SET
+		   label_singular = coalesce($3, label_singular),
+		   label_plural   = coalesce($4, label_plural),
+		   icon           = coalesce($5, icon),
+		   description    = coalesce($6, description),
+		   updated_at     = now()
+		 WHERE workspace_id = $1 AND name_singular = $2 AND is_active = true
+		 RETURNING `+objectCols,
+		workspaceID, nameSingular, in.LabelSingular, in.LabelPlural, in.Icon, in.Description)
+	o, err := scanObject(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Object{}, ErrNotFound
+	}
+	return o, err
+}
+
+// DeleteObject hard-deletes an object; fields and records cascade.
+func (r *Repo) DeleteObject(ctx context.Context, workspaceID, nameSingular string) error {
+	tag, err := r.pool.Exec(ctx,
+		`DELETE FROM metadata.object WHERE workspace_id = $1 AND name_singular = $2`,
+		workspaceID, nameSingular)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// UpdateField edits a field's label (scoped to its object).
+func (r *Repo) UpdateField(ctx context.Context, objectID, fieldID, label string) (Field, error) {
+	row := r.pool.QueryRow(ctx,
+		`UPDATE metadata.field SET label = $3, updated_at = now()
+		 WHERE id = $1 AND object_id = $2 AND is_active = true
+		 RETURNING `+fieldCols, fieldID, objectID, label)
+	f, err := scanField(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Field{}, ErrNotFound
+	}
+	return f, err
+}
+
+// DeleteField hard-deletes a field (scoped to its object).
+func (r *Repo) DeleteField(ctx context.Context, objectID, fieldID string) error {
+	tag, err := r.pool.Exec(ctx,
+		`DELETE FROM metadata.field WHERE id = $1 AND object_id = $2 AND is_system = false`,
+		fieldID, objectID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // CreateFieldInput carries the fields needed to create a field.
 type CreateFieldInput struct {
 	Name         string

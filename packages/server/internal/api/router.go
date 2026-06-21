@@ -67,7 +67,11 @@ func NewServer(pool *pgxpool.Pool, jwtSecret, gatewayURL string) http.Handler {
 			r.Post("/metadata/objects", s.handleCreateObject)
 			r.Get("/metadata/objects", s.handleListObjects)
 			r.Get("/metadata/objects/{nameSingular}", s.handleGetObject)
+			r.Patch("/metadata/objects/{nameSingular}", s.handleUpdateObject)
+			r.Delete("/metadata/objects/{nameSingular}", s.handleDeleteObject)
 			r.Post("/metadata/objects/{nameSingular}/fields", s.handleCreateField)
+			r.Patch("/metadata/objects/{nameSingular}/fields/{fieldId}", s.handleUpdateField)
+			r.Delete("/metadata/objects/{nameSingular}/fields/{fieldId}", s.handleDeleteField)
 
 			// Generic record CRUD, addressed by the object's plural name.
 			r.Get("/{objectPlural}", s.handleListRecords)

@@ -1,5 +1,5 @@
 // Thin client for the Labzyn API (proxied to the Go server in dev).
-import { tokenStore, type AuthResponse } from './auth';
+import { tokenStore, workspaceStore, type AuthResponse } from './auth';
 
 export type MetadataObject = {
   id: string;
@@ -75,11 +75,13 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = tokenStore.get();
+  const workspace = workspaceStore.get();
   const res = await fetch(BASE + path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(workspace ? { 'X-Workspace-Id': workspace } : {}),
       ...init?.headers,
     },
   });
@@ -159,11 +161,28 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+  updateObject: (
+    nameSingular: string,
+    input: Partial<Pick<CreateObjectInput, 'labelSingular' | 'labelPlural' | 'icon'>>,
+  ) =>
+    request<MetadataObject>(`/metadata/objects/${nameSingular}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  deleteObject: (nameSingular: string) =>
+    request<void>(`/metadata/objects/${nameSingular}`, { method: 'DELETE' }),
   createField: (nameSingular: string, input: CreateFieldInput) =>
     request<MetadataField>(`/metadata/objects/${nameSingular}/fields`, {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+  updateField: (nameSingular: string, fieldId: string, label: string) =>
+    request<MetadataField>(`/metadata/objects/${nameSingular}/fields/${fieldId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ label }),
+    }),
+  deleteField: (nameSingular: string, fieldId: string) =>
+    request<void>(`/metadata/objects/${nameSingular}/fields/${fieldId}`, { method: 'DELETE' }),
 
   listRecords: (plural: string, params: ListRecordsParams = {}) =>
     request<RecordPage>(`/${plural}${buildQuery(params)}`),

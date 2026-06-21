@@ -4,6 +4,8 @@ import type { MeResponse } from './api';
 type AuthContextValue = {
   user: MeResponse['user'];
   workspaces: MeResponse['workspaces'];
+  currentWorkspaceId: string;
+  switchWorkspace: (id: string) => void;
   logout: () => void;
 };
 

@@ -154,6 +154,70 @@ func (s *Server) handleCreateField(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, field)
 }
 
+func (s *Server) handleUpdateObject(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "nameSingular")
+	var in struct {
+		LabelSingular *string `json:"labelSingular"`
+		LabelPlural   *string `json:"labelPlural"`
+		Icon          *string `json:"icon"`
+		Description   *string `json:"description"`
+	}
+	if err := decodeJSON(r, &in); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	obj, err := s.meta.UpdateObject(r.Context(), workspaceID(r), name, metadata.UpdateObjectInput{
+		LabelSingular: in.LabelSingular, LabelPlural: in.LabelPlural, Icon: in.Icon, Description: in.Description,
+	})
+	if err != nil {
+		objectErrorResponse(w, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, obj)
+}
+
+func (s *Server) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
+	if err := s.meta.DeleteObject(r.Context(), workspaceID(r), chi.URLParam(r, "nameSingular")); err != nil {
+		objectErrorResponse(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleUpdateField(w http.ResponseWriter, r *http.Request) {
+	obj, err := s.meta.GetObjectBySingular(r.Context(), workspaceID(r), chi.URLParam(r, "nameSingular"))
+	if err != nil {
+		objectErrorResponse(w, err)
+		return
+	}
+	var in struct {
+		Label string `json:"label"`
+	}
+	if err := decodeJSON(r, &in); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	field, err := s.meta.UpdateField(r.Context(), obj.ID, chi.URLParam(r, "fieldId"), in.Label)
+	if err != nil {
+		objectErrorResponse(w, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, field)
+}
+
+func (s *Server) handleDeleteField(w http.ResponseWriter, r *http.Request) {
+	obj, err := s.meta.GetObjectBySingular(r.Context(), workspaceID(r), chi.URLParam(r, "nameSingular"))
+	if err != nil {
+		objectErrorResponse(w, err)
+		return
+	}
+	if err := s.meta.DeleteField(r.Context(), obj.ID, chi.URLParam(r, "fieldId")); err != nil {
+		objectErrorResponse(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func objectErrorResponse(w http.ResponseWriter, err error) {
 	if errors.Is(err, metadata.ErrNotFound) {
 		httpx.Error(w, http.StatusNotFound, "object not found")
