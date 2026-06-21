@@ -13,6 +13,7 @@ export function CreateObjectDialog({ open, onClose }: { open: boolean; onClose: 
   const [labelPlural, setLabelPlural] = useState('');
   const [nameSingular, setNameSingular] = useState('');
   const [namePlural, setNamePlural] = useState('');
+  const [storage, setStorage] = useState<'jsonb' | 'table'>('jsonb');
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
@@ -20,6 +21,7 @@ export function CreateObjectDialog({ open, onClose }: { open: boolean; onClose: 
     setLabelPlural('');
     setNameSingular('');
     setNamePlural('');
+    setStorage('jsonb');
     setError(null);
   };
 
@@ -30,6 +32,7 @@ export function CreateObjectDialog({ open, onClose }: { open: boolean; onClose: 
         namePlural,
         labelSingular: labelSingular || nameSingular,
         labelPlural: labelPlural || namePlural,
+        storage,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['objects'] });
@@ -89,12 +92,55 @@ export function CreateObjectDialog({ open, onClose }: { open: boolean; onClose: 
             <Input value={namePlural} onChange={(e) => setNamePlural(e.target.value)} placeholder="experiments" />
           </Labeled>
         </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-secondary">Storage</span>
+          <div className="grid grid-cols-2 gap-2">
+            <StorageOption
+              label="Flexible"
+              hint="JSONB — schemaless"
+              selected={storage === 'jsonb'}
+              onClick={() => setStorage('jsonb')}
+            />
+            <StorageOption
+              label="Performance"
+              hint="Real table, typed columns"
+              selected={storage === 'table'}
+              onClick={() => setStorage('table')}
+            />
+          </div>
+        </div>
+
         {nameSingular && !valid && (
           <p className="text-xs text-danger">API names must match ^[a-zA-Z][a-zA-Z0-9_]*$</p>
         )}
         {error && <p className="text-xs text-danger">{error}</p>}
       </div>
     </Modal>
+  );
+}
+
+function StorageOption({
+  label,
+  hint,
+  selected,
+  onClick,
+}: {
+  label: string;
+  hint: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-sm border px-2.5 py-2 text-left transition-colors duration-fast ${
+        selected ? 'border-primary bg-accent' : 'border-border hover:bg-accent'
+      }`}
+    >
+      <div className="text-sm font-medium text-foreground">{label}</div>
+      <div className="text-xxs text-tertiary">{hint}</div>
+    </button>
   );
 }
 

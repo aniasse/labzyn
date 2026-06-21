@@ -51,6 +51,7 @@ export type CreateObjectInput = {
   labelPlural: string;
   icon?: string;
   description?: string;
+  storage?: 'jsonb' | 'table';
 };
 
 export type CreateFieldInput = {

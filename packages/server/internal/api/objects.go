@@ -26,6 +26,7 @@ func (s *Server) handleCreateObject(w http.ResponseWriter, r *http.Request) {
 		Labels        json.RawMessage `json:"labels"`
 		Icon          string          `json:"icon"`
 		Description   string          `json:"description"`
+		Storage       string          `json:"storage"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid JSON body")
@@ -34,6 +35,10 @@ func (s *Server) handleCreateObject(w http.ResponseWriter, r *http.Request) {
 	if !validName(in.NameSingular) || !validName(in.NamePlural) {
 		httpx.Error(w, http.StatusBadRequest,
 			"nameSingular and namePlural must match ^[a-zA-Z][a-zA-Z0-9_]*$")
+		return
+	}
+	if in.Storage != "" && in.Storage != "jsonb" && in.Storage != "table" {
+		httpx.Error(w, http.StatusBadRequest, "storage must be \"jsonb\" or \"table\"")
 		return
 	}
 	if in.LabelSingular == "" {
@@ -51,6 +56,7 @@ func (s *Server) handleCreateObject(w http.ResponseWriter, r *http.Request) {
 		Labels:        in.Labels,
 		Icon:          in.Icon,
 		Description:   in.Description,
+		Storage:       in.Storage,
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -59,6 +65,14 @@ func (s *Server) handleCreateObject(w http.ResponseWriter, r *http.Request) {
 		}
 		httpx.Error(w, http.StatusInternalServerError, "could not create object")
 		return
+	}
+
+	// Materialize a real table for table-backed objects.
+	if isTableBacked(obj) {
+		if err := s.ddl.EnsureTable(r.Context(), workspaceID(r), obj, nil); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "could not create table: "+err.Error())
+			return
+		}
 	}
 	httpx.JSON(w, http.StatusCreated, obj)
 }
@@ -151,6 +165,14 @@ func (s *Server) handleCreateField(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, "could not create field")
 		return
 	}
+
+	// Add the column on table-backed objects.
+	if isTableBacked(obj) {
+		if err := s.ddl.AddColumn(r.Context(), workspaceID(r), obj, field); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "could not add column: "+err.Error())
+			return
+		}
+	}
 	httpx.JSON(w, http.StatusCreated, field)
 }
 
@@ -177,9 +199,21 @@ func (s *Server) handleUpdateObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
-	if err := s.meta.DeleteObject(r.Context(), workspaceID(r), chi.URLParam(r, "nameSingular")); err != nil {
+	name := chi.URLParam(r, "nameSingular")
+	obj, err := s.meta.GetObjectBySingular(r.Context(), workspaceID(r), name)
+	if err != nil {
 		objectErrorResponse(w, err)
 		return
+	}
+	if err := s.meta.DeleteObject(r.Context(), workspaceID(r), name); err != nil {
+		objectErrorResponse(w, err)
+		return
+	}
+	if isTableBacked(obj) {
+		if err := s.ddl.DropTable(r.Context(), workspaceID(r), obj); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "object deleted but table drop failed: "+err.Error())
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -211,9 +245,33 @@ func (s *Server) handleDeleteField(w http.ResponseWriter, r *http.Request) {
 		objectErrorResponse(w, err)
 		return
 	}
-	if err := s.meta.DeleteField(r.Context(), obj.ID, chi.URLParam(r, "fieldId")); err != nil {
+	fieldID := chi.URLParam(r, "fieldId")
+
+	// Resolve the field name (needed to drop the column on table-backed objects).
+	fieldName := ""
+	if isTableBacked(obj) {
+		fields, err := s.meta.ListFields(r.Context(), obj.ID)
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "could not load fields")
+			return
+		}
+		for _, f := range fields {
+			if f.ID == fieldID {
+				fieldName = f.Name
+				break
+			}
+		}
+	}
+
+	if err := s.meta.DeleteField(r.Context(), obj.ID, fieldID); err != nil {
 		objectErrorResponse(w, err)
 		return
+	}
+	if isTableBacked(obj) && fieldName != "" {
+		if err := s.ddl.DropColumn(r.Context(), workspaceID(r), obj, fieldName); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "field deleted but column drop failed: "+err.Error())
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

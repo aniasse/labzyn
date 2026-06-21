@@ -19,6 +19,7 @@ type Object struct {
 	Description   string          `json:"description"`
 	IsSystem      bool            `json:"isSystem"`
 	IsActive      bool            `json:"isActive"`
+	Storage       string          `json:"storage"` // "jsonb" | "table"
 	CreatedAt     time.Time       `json:"createdAt"`
 	UpdatedAt     time.Time       `json:"updatedAt"`
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aniasse/labzyn/server/internal/core"
+	"github.com/aniasse/labzyn/server/internal/ddl"
 	"github.com/aniasse/labzyn/server/internal/hpc"
 	"github.com/aniasse/labzyn/server/internal/httpx"
 	"github.com/aniasse/labzyn/server/internal/llm"
@@ -22,6 +23,8 @@ type Server struct {
 	core      *core.Repo
 	meta      *metadata.Repo
 	rec       *records.Repo
+	tables    *records.TableStore
+	ddl       *ddl.Engine
 	hpc       *hpc.Client
 	llm       *llm.Client
 	jwtSecret string
@@ -34,6 +37,8 @@ func NewServer(pool *pgxpool.Pool, jwtSecret, gatewayURL string, llmClient *llm.
 		core:      core.NewRepo(pool),
 		meta:      metadata.NewRepo(pool),
 		rec:       records.NewRepo(pool),
+		tables:    records.NewTableStore(pool),
+		ddl:       ddl.New(pool),
 		hpc:       hpc.New(gatewayURL),
 		llm:       llmClient,
 		jwtSecret: jwtSecret,

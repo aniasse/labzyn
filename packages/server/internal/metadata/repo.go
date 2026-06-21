@@ -26,17 +26,18 @@ type CreateObjectInput struct {
 	Labels        []byte // jsonb, may be nil
 	Icon          string
 	Description   string
+	Storage       string // "jsonb" (default) | "table"
 }
 
 const objectCols = `id::text, workspace_id::text, name_singular, name_plural,
 	label_singular, label_plural, labels, icon, description, is_system, is_active,
-	created_at, updated_at`
+	storage, created_at, updated_at`
 
 func scanObject(row pgx.Row) (Object, error) {
 	var o Object
 	err := row.Scan(&o.ID, &o.WorkspaceID, &o.NameSingular, &o.NamePlural,
 		&o.LabelSingular, &o.LabelPlural, &o.Labels, &o.Icon, &o.Description,
-		&o.IsSystem, &o.IsActive, &o.CreatedAt, &o.UpdatedAt)
+		&o.IsSystem, &o.IsActive, &o.Storage, &o.CreatedAt, &o.UpdatedAt)
 	return o, err
 }
 
@@ -50,13 +51,17 @@ func (r *Repo) CreateObject(ctx context.Context, workspaceID string, in CreateOb
 	if icon == "" {
 		icon = "IconList"
 	}
+	storage := in.Storage
+	if storage == "" {
+		storage = "jsonb"
+	}
 	row := r.pool.QueryRow(ctx,
 		`INSERT INTO metadata.object
-		   (workspace_id, name_singular, name_plural, label_singular, label_plural, labels, icon, description)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+		   (workspace_id, name_singular, name_plural, label_singular, label_plural, labels, icon, description, storage)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 		 RETURNING `+objectCols,
 		workspaceID, in.NameSingular, in.NamePlural, in.LabelSingular, in.LabelPlural,
-		labels, icon, in.Description)
+		labels, icon, in.Description, storage)
 	return scanObject(row)
 }
 

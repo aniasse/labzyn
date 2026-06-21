@@ -139,18 +139,18 @@ func (s *Server) execTool(ctx context.Context, wsID, name string, args json.RawM
 		if err != nil {
 			return nil, err
 		}
+		fields, err := s.meta.ListFields(ctx, o.ID)
+		if err != nil {
+			return nil, err
+		}
 		opt := records.ListOptions{Limit: a.Limit, Desc: a.Order == "desc"}
 		// Validate orderBy against the catalog (the value reaches raw SQL) and
-		// apply a typed cast so numbers/dates sort by value, not text.
+		// apply a typed cast so JSONB-stored numbers/dates sort by value.
 		if a.OrderBy != "" {
 			switch a.OrderBy {
 			case "created_at", "updated_at", "position":
 				opt.OrderBy = a.OrderBy
 			default:
-				fields, err := s.meta.ListFields(ctx, o.ID)
-				if err != nil {
-					return nil, err
-				}
 				for _, f := range fields {
 					if f.Name == a.OrderBy {
 						opt.OrderBy = a.OrderBy
@@ -163,7 +163,7 @@ func (s *Server) execTool(ctx context.Context, wsID, name string, args json.RawM
 				}
 			}
 		}
-		list, total, err := s.rec.List(ctx, o.ID, wsID, opt)
+		list, total, err := s.recList(ctx, o, fields, wsID, opt)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +186,7 @@ func (s *Server) execTool(ctx context.Context, wsID, name string, args json.RawM
 		if err := records.Validate(fields, a.Data, true); err != nil {
 			return nil, err
 		}
-		return s.rec.Create(ctx, o.ID, wsID, a.Data)
+		return s.recCreate(ctx, o, wsID, a.Data)
 
 	case "submit_hpc_job":
 		var a struct {

@@ -78,7 +78,7 @@ func (s *Server) handleListRecords(w http.ResponseWriter, r *http.Request) {
 		opt.Filters[key] = vals[0]
 	}
 
-	list, total, err := s.rec.List(r.Context(), obj.ID, workspaceID(r), opt)
+	list, total, err := s.recList(r.Context(), obj, fields, workspaceID(r), opt)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "could not list records")
 		return
@@ -105,7 +105,7 @@ func (s *Server) handleCreateRecord(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
-	rec, err := s.rec.Create(r.Context(), obj.ID, workspaceID(r), data)
+	rec, err := s.recCreate(r.Context(), obj, workspaceID(r), data)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "could not create record")
 		return
@@ -118,7 +118,7 @@ func (s *Server) handleGetRecord(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	rec, err := s.rec.Get(r.Context(), obj.ID, workspaceID(r), chi.URLParam(r, "id"))
+	rec, err := s.recGet(r.Context(), obj, workspaceID(r), chi.URLParam(r, "id"))
 	if err != nil {
 		recordErrorResponse(w, err)
 		return
@@ -140,7 +140,7 @@ func (s *Server) handleUpdateRecord(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
-	rec, err := s.rec.Update(r.Context(), obj.ID, workspaceID(r), chi.URLParam(r, "id"), patch)
+	rec, err := s.recUpdate(r.Context(), obj, workspaceID(r), chi.URLParam(r, "id"), patch)
 	if err != nil {
 		recordErrorResponse(w, err)
 		return
@@ -153,7 +153,7 @@ func (s *Server) handleDeleteRecord(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.rec.SoftDelete(r.Context(), obj.ID, workspaceID(r), chi.URLParam(r, "id")); err != nil {
+	if err := s.recDelete(r.Context(), obj, workspaceID(r), chi.URLParam(r, "id")); err != nil {
 		recordErrorResponse(w, err)
 		return
 	}
