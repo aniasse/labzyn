@@ -3,6 +3,8 @@ import type { MetadataField } from '@/lib/api';
 import { formatValue } from '@/lib/fields';
 import { FieldInput } from './FieldInput';
 import { Check } from 'lucide-react';
+import { Tag } from '@/ui/Tag';
+import { colorForString } from '@/ui/themeColor';
 
 type Props = {
   field: MetadataField;
@@ -60,11 +62,8 @@ function CellValue({ field, value }: { field: MetadataField; value: unknown }) {
     );
   }
   if (field.type === 'SELECT') {
-    return (
-      <span className="rounded-pill bg-muted px-2 py-0.5 text-xs text-secondary">
-        {formatValue(field, value)}
-      </span>
-    );
+    const v = formatValue(field, value);
+    return <Tag color={colorForString(v)} text={v} />;
   }
   return <span className="truncate text-foreground">{formatValue(field, value)}</span>;
 }

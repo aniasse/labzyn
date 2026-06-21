@@ -1,78 +1,34 @@
+/* Twenty's real design tokens (copied token-for-token from twenty-ui). */
+@import './theme/twenty-light.css';
+@import './theme/twenty-dark.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /*
-  Theme tokens — ported from Twenty (twenty-ui/theme/constants).
-  Grayscale mirrors GRAY_SCALE_LIGHT/DARK (display-p3 values as sRGB hex).
-  Accent mirrors MAIN_COLORS.blue = Radix indigo9.
+  Semantic tokens mapped onto Twenty's --t-* variables, so the whole app uses
+  Twenty's exact palette/typography/radii (P3 colors, Inter, spacing).
+  These resolve against whichever theme class (.light/.dark) is on <html>.
 */
 :root {
-  --gray1: #ffffff;
-  --gray2: #fcfcfc;
-  --gray3: #f9f9f9;
-  --gray4: #f1f1f1;
-  --gray5: #ebebeb;
-  --gray6: #d6d6d6;
-  --gray7: #cccccc;
-  --gray8: #b3b3b3;
-  --gray9: #999999;
-  --gray10: #838383;
-  --gray11: #666666;
-  --gray12: #333333;
+  --background: var(--t-background-primary);
+  --foreground: var(--t-font-color-primary);
+  --secondary: var(--t-font-color-secondary);
+  --tertiary: var(--t-font-color-tertiary);
+  --muted: var(--t-background-secondary);
+  --muted-foreground: var(--t-font-color-tertiary);
+  --accent: var(--t-background-transparent-light);
+  --accent-foreground: var(--t-font-color-primary);
+  --border: var(--t-border-color-medium);
 
-  --background: var(--gray1);
-  --foreground: var(--gray12);
-  --secondary: var(--gray11);
-  --tertiary: var(--gray9);
-  --muted: var(--gray3);
-  --muted-foreground: var(--gray9);
-  --accent: var(--gray4);
-  --accent-foreground: var(--gray12);
-  --border: var(--gray5);
-
-  --primary: #3e63dd; /* Radix indigo9 */
+  --primary: var(--t-color-blue);
   --primary-foreground: #ffffff;
 
-  --sidebar: var(--gray2);
-  --sidebar-border: var(--gray5);
+  --sidebar: var(--t-background-secondary);
+  --sidebar-border: var(--t-border-color-light);
 
-  --danger: #e5484d; /* Radix red9 */
-
-  color-scheme: light;
-}
-
-.dark {
-  --gray1: #161616;
-  --gray2: #1c1c1c;
-  --gray3: #232323;
-  --gray4: #282828;
-  --gray5: #2e2e2e;
-  --gray6: #343434;
-  --gray7: #3e3e3e;
-  --gray8: #505050;
-  --gray9: #707070;
-  --gray10: #7e7e7e;
-  --gray11: #a0a0a0;
-  --gray12: #ededed;
-
-  --background: var(--gray1);
-  --foreground: var(--gray12);
-  --secondary: var(--gray11);
-  --tertiary: var(--gray9);
-  --muted: var(--gray3);
-  --muted-foreground: var(--gray9);
-  --accent: var(--gray4);
-  --accent-foreground: var(--gray12);
-  --border: var(--gray5);
-
-  --primary: #5b73e8;
-  --primary-foreground: #ffffff;
-
-  --sidebar: var(--gray2);
-  --sidebar-border: var(--gray5);
-
-  color-scheme: dark;
+  --danger: var(--t-color-red);
 }
 
 @layer base {
@@ -88,8 +44,8 @@
     margin: 0;
     background-color: var(--background);
     color: var(--foreground);
-    font-family: 'Inter', system-ui, sans-serif;
-    font-size: 0.92rem; /* Twenty sm — the workspace base size */
+    font-family: var(--t-font-family);
+    font-size: var(--t-font-size-sm);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
