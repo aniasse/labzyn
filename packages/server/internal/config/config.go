@@ -9,6 +9,12 @@ type Config struct {
 	DatabaseURL string
 	GatewayURL  string
 	JWTSecret   string
+
+	// LLM (OpenAI-compatible: OpenAI, Groq, Mistral, …). Agent is disabled
+	// until an API key is set.
+	LLMBaseURL string
+	LLMAPIKey  string
+	LLMModel   string
 }
 
 // Load reads configuration from environment variables, applying sane defaults
@@ -19,7 +25,10 @@ func Load() Config {
 		DatabaseURL: env("LABZYN_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/labzyn?sslmode=disable"),
 		GatewayURL:  env("LABZYN_GATEWAY_URL", "http://localhost:8088"),
 		// Dev default; MUST be overridden in production.
-		JWTSecret: env("LABZYN_JWT_SECRET", "dev-insecure-secret-change-me"),
+		JWTSecret:  env("LABZYN_JWT_SECRET", "dev-insecure-secret-change-me"),
+		LLMBaseURL: env("LABZYN_LLM_BASE_URL", "https://api.groq.com/openai/v1"),
+		LLMAPIKey:  env("LABZYN_LLM_API_KEY", ""),
+		LLMModel:   env("LABZYN_LLM_MODEL", "llama-3.3-70b-versatile"),
 	}
 }
 

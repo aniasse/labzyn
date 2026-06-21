@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { api } from '@/lib/api';
 import { tokenStore, workspaceStore } from '@/lib/auth';
 import { AuthContext } from '@/lib/authContext';
+import { ChatPage } from '@/pages/ChatPage';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { ObjectListPage } from '@/pages/ObjectListPage';
@@ -85,6 +86,7 @@ function AuthedApp({ onLogout }: { onLogout: () => void }) {
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/agent" element={<ChatPage />} />
           <Route path="/objects/:objectPlural" element={<ObjectListPage />} />
           <Route path="/objects/:objectPlural/:id" element={<RecordDetailPage />} />
           <Route path="/settings" element={<Navigate to="/settings/objects" replace />} />

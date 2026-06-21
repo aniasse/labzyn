@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { NavLink } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/authContext';
 import { getIcon } from '@/lib/icons';
@@ -25,6 +25,16 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 pb-3">
+        <NavLink
+          to="/agent"
+          className={({ isActive }) =>
+            cn(navItemBase, 'mb-1', isActive && 'bg-accent text-foreground')
+          }
+        >
+          <Sparkles size={16} strokeWidth={2} className="shrink-0 text-primary" />
+          <span className="font-medium text-foreground">Ask Labzyn</span>
+        </NavLink>
+
         <SectionLabel>Workspace</SectionLabel>
 
         {isLoading && <Hint>Loading objects…</Hint>}

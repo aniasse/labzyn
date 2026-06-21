@@ -8,6 +8,7 @@ import (
 	"github.com/aniasse/labzyn/server/internal/core"
 	"github.com/aniasse/labzyn/server/internal/hpc"
 	"github.com/aniasse/labzyn/server/internal/httpx"
+	"github.com/aniasse/labzyn/server/internal/llm"
 	"github.com/aniasse/labzyn/server/internal/metadata"
 	"github.com/aniasse/labzyn/server/internal/records"
 	"github.com/go-chi/chi/v5"
@@ -22,17 +23,19 @@ type Server struct {
 	meta      *metadata.Repo
 	rec       *records.Repo
 	hpc       *hpc.Client
+	llm       *llm.Client
 	jwtSecret string
 }
 
 // NewServer builds the HTTP handler tree.
-func NewServer(pool *pgxpool.Pool, jwtSecret, gatewayURL string) http.Handler {
+func NewServer(pool *pgxpool.Pool, jwtSecret, gatewayURL string, llmClient *llm.Client) http.Handler {
 	s := &Server{
 		pool:      pool,
 		core:      core.NewRepo(pool),
 		meta:      metadata.NewRepo(pool),
 		rec:       records.NewRepo(pool),
 		hpc:       hpc.New(gatewayURL),
+		llm:       llmClient,
 		jwtSecret: jwtSecret,
 	}
 
@@ -62,6 +65,10 @@ func NewServer(pool *pgxpool.Pool, jwtSecret, gatewayURL string) http.Handler {
 
 			// MCP server (agent tools: data model + HPC gateway).
 			r.Post("/mcp", s.handleMCP)
+
+			// Agent chat (LLM tool-calling loop over the MCP tools).
+			r.Post("/agent/chat", s.handleAgentChat)
+			r.Get("/agent/status", s.handleAgentStatus)
 
 			// Metadata catalog.
 			r.Post("/metadata/objects", s.handleCreateObject)

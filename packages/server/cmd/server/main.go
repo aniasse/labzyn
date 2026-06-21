@@ -14,6 +14,7 @@ import (
 	"github.com/aniasse/labzyn/server/internal/api"
 	"github.com/aniasse/labzyn/server/internal/config"
 	"github.com/aniasse/labzyn/server/internal/database"
+	"github.com/aniasse/labzyn/server/internal/llm"
 )
 
 func main() {
@@ -40,9 +41,16 @@ func run() error {
 	}
 	log.Println("labzyn-server: migrations up to date")
 
+	llmClient := llm.New(cfg.LLMBaseURL, cfg.LLMAPIKey, cfg.LLMModel)
+	if llmClient.Enabled() {
+		log.Printf("labzyn-server: agent enabled (model %s)", cfg.LLMModel)
+	} else {
+		log.Println("labzyn-server: agent disabled (no LABZYN_LLM_API_KEY)")
+	}
+
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           api.NewServer(pool, cfg.JWTSecret, cfg.GatewayURL),
+		Handler:           api.NewServer(pool, cfg.JWTSecret, cfg.GatewayURL, llmClient),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

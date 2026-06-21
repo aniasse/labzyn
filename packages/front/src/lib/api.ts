@@ -135,6 +135,9 @@ function buildQuery(params: ListRecordsParams): string {
   return s ? `?${s}` : '';
 }
 
+export type AgentStep = { tool: string; arguments: unknown; result: string };
+export type AgentReply = { reply: string; steps: AgentStep[] };
+
 export type MeResponse = {
   user: { id: string; email: string; firstName: string; lastName: string };
   workspaces: { id: string; displayName: string; subdomain: string }[];
@@ -151,6 +154,10 @@ export const api = {
   login: (input: { email: string; password: string }) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(input) }),
   me: () => request<MeResponse>('/auth/me'),
+
+  agentStatus: () => request<{ enabled: boolean }>('/agent/status'),
+  agentChat: (messages: { role: string; content: string }[]) =>
+    request<AgentReply>('/agent/chat', { method: 'POST', body: JSON.stringify({ messages }) }),
 
   listObjects: () =>
     request<{ data: MetadataObject[] }>('/metadata/objects').then((r) => r.data),
