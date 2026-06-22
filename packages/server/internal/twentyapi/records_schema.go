@@ -2,6 +2,7 @@ package twentyapi
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -10,9 +11,76 @@ import (
 	"github.com/aniasse/labzyn/server/internal/metadata"
 	"github.com/aniasse/labzyn/server/internal/records"
 	"github.com/graphql-go/graphql"
+	"github.com/graphql-go/graphql/language/ast"
 	gqlhandler "github.com/graphql-go/handler"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// UUID scalar (behaves like String) for the core records schema.
+var uuidScalar = graphql.NewScalar(graphql.ScalarConfig{
+	Name:       "UUID",
+	Serialize:  func(v any) any { return v },
+	ParseValue: func(v any) any { return v },
+	ParseLiteral: func(v ast.Value) any {
+		if s, ok := v.(*ast.StringValue); ok {
+			return s.Value
+		}
+		return nil
+	},
+})
+
+// filterIsEnum is nestjs-query's IS comparison (NULL / NOT_NULL).
+var filterIsEnum = graphql.NewEnum(graphql.EnumConfig{
+	Name: "FilterIs",
+	Values: graphql.EnumValueConfigMap{
+		"NULL":     &graphql.EnumValueConfig{Value: "NULL"},
+		"NOT_NULL": &graphql.EnumValueConfig{Value: "NOT_NULL"},
+	},
+})
+
+// Shared filter comparison inputs (nestjs-query style: eq, in, ilike, …).
+func cmpInput(name string, scalar graphql.Input, extra ...string) *graphql.InputObject {
+	fields := graphql.InputObjectConfigFieldMap{
+		"eq":  &graphql.InputObjectFieldConfig{Type: scalar},
+		"neq": &graphql.InputObjectFieldConfig{Type: scalar},
+		"in":  &graphql.InputObjectFieldConfig{Type: graphql.NewList(scalar)},
+		"is":  &graphql.InputObjectFieldConfig{Type: filterIsEnum},
+	}
+	for _, e := range extra {
+		fields[e] = &graphql.InputObjectFieldConfig{Type: scalar}
+	}
+	return graphql.NewInputObject(graphql.InputObjectConfig{Name: name, Fields: fields})
+}
+
+var (
+	uuidFilterCmp   = cmpInput("UUIDFilterComparison", uuidScalar, "gt", "gte", "lt", "lte")
+	stringFilterCmp = cmpInput("StringFilterComparison", graphql.String, "ilike", "like", "gt", "gte", "lt", "lte")
+	floatFilterCmp  = cmpInput("FloatFilterComparison", graphql.Float, "gt", "gte", "lt", "lte")
+	boolFilterCmp   = cmpInput("BooleanFilterComparison", graphql.Boolean)
+	dateFilterCmp   = cmpInput("DateFilterComparison", graphql.String, "gt", "gte", "lt", "lte")
+)
+
+// fullNameOutput is the FULL_NAME composite field type (firstName/lastName).
+var fullNameOutput = graphql.NewObject(graphql.ObjectConfig{
+	Name: "FullName",
+	Fields: graphql.Fields{
+		"firstName": &graphql.Field{Type: graphql.String},
+		"lastName":  &graphql.Field{Type: graphql.String},
+	},
+})
+
+func filterCmpFor(t metadata.FieldType) *graphql.InputObject {
+	switch t {
+	case metadata.FieldNumber, metadata.FieldNumeric, metadata.FieldRating:
+		return floatFilterCmp
+	case metadata.FieldBoolean:
+		return boolFilterCmp
+	case metadata.FieldDate, metadata.FieldDateTime:
+		return dateFilterCmp
+	default:
+		return stringFilterCmp
+	}
+}
 
 // BuildCoreHandler builds the dynamic records GraphQL handler for /graphql.
 func BuildCoreHandler(pool *pgxpool.Pool) (http.Handler, error) {
@@ -117,10 +185,25 @@ func addObjectQuery(
 		},
 	})
 
-	// Permissive filter/orderBy inputs (contents ignored for now; accept {}/[]).
-	filterInput := graphql.NewInputObject(graphql.InputObjectConfig{
-		Name:   typeName + "FilterInput",
-		Fields: graphql.InputObjectConfigFieldMap{"id": &graphql.InputObjectFieldConfig{Type: graphql.String}},
+	// Filter input: and/or/not + per-field comparisons (nestjs-query style).
+	var filterInput *graphql.InputObject
+	filterInput = graphql.NewInputObject(graphql.InputObjectConfig{
+		Name: typeName + "FilterInput",
+		Fields: graphql.InputObjectConfigFieldMapThunk(func() graphql.InputObjectConfigFieldMap {
+			m := graphql.InputObjectConfigFieldMap{
+				"and":       &graphql.InputObjectFieldConfig{Type: graphql.NewList(filterInput)},
+				"or":        &graphql.InputObjectFieldConfig{Type: graphql.NewList(filterInput)},
+				"not":       &graphql.InputObjectFieldConfig{Type: filterInput},
+				"id":        &graphql.InputObjectFieldConfig{Type: uuidFilterCmp},
+				"createdAt": &graphql.InputObjectFieldConfig{Type: dateFilterCmp},
+				"updatedAt": &graphql.InputObjectFieldConfig{Type: dateFilterCmp},
+				"deletedAt": &graphql.InputObjectFieldConfig{Type: dateFilterCmp},
+			}
+			for _, f := range fields {
+				m[f.Name] = &graphql.InputObjectFieldConfig{Type: filterCmpFor(f.Type)}
+			}
+			return m
+		}),
 	})
 	orderByInput := graphql.NewInputObject(graphql.InputObjectConfig{
 		Name:   typeName + "OrderByInput",
@@ -153,7 +236,31 @@ func addObjectQuery(
 				return nil, err
 			}
 
-			opt := records.ListOptions{Limit: argInt(p.Args, "first", 50), Offset: argInt(p.Args, "offset", 0)}
+			idEq := ""
+			fieldFilters := map[string]string{}
+			if fm, ok := p.Args["filter"].(map[string]any); ok {
+				parseFilter(fm, &idEq, fieldFilters)
+			}
+
+			// findOne: filter on a single id → fetch directly.
+			if idEq != "" {
+				var rec records.Record
+				if obj.Storage == "table" {
+					rec, err = tableStore.Get(p.Context, obj, wsID, idEq)
+				} else {
+					rec, err = recRepo.Get(p.Context, obj.ID, wsID, idEq)
+				}
+				if err != nil {
+					return emptyConnection(), nil
+				}
+				return buildConnection([]records.Record{rec}, 1, 0), nil
+			}
+
+			opt := records.ListOptions{
+				Limit:   argInt(p.Args, "first", 50),
+				Offset:  argInt(p.Args, "offset", 0),
+				Filters: fieldFilters,
+			}
 			var recs []records.Record
 			var total int
 			if obj.Storage == "table" {
@@ -169,6 +276,56 @@ func addObjectQuery(
 				return nil, err
 			}
 			return buildConnection(recs, total, opt.Offset), nil
+		},
+	}
+
+	// Singular findOne field: {singular}(filter) → one record or null.
+	queryFields[o.NameSingular] = &graphql.Field{
+		Type: node,
+		Args: graphql.FieldConfigArgument{"filter": &graphql.ArgumentConfig{Type: filterInput}},
+		Resolve: func(p graphql.ResolveParams) (any, error) {
+			wsID, err := coreRepo.DefaultWorkspaceID(p.Context, userIDFromCtx(p.Context))
+			if err != nil {
+				return nil, err
+			}
+			obj, err := metaRepo.GetObjectByPlural(p.Context, wsID, plural)
+			if err != nil {
+				return nil, nil
+			}
+			idEq := ""
+			ff := map[string]string{}
+			if fm, ok := p.Args["filter"].(map[string]any); ok {
+				parseFilter(fm, &idEq, ff)
+			}
+			var rec records.Record
+			if idEq != "" {
+				if obj.Storage == "table" {
+					rec, err = tableStore.Get(p.Context, obj, wsID, idEq)
+				} else {
+					rec, err = recRepo.Get(p.Context, obj.ID, wsID, idEq)
+				}
+				if err != nil {
+					return nil, nil
+				}
+				return recordNode(rec), nil
+			}
+			// otherwise first matching record
+			var recs []records.Record
+			opt := records.ListOptions{Limit: 1, Filters: ff}
+			if obj.Storage == "table" {
+				of, _ := metaRepo.ListFields(p.Context, obj.ID)
+				names := map[string]struct{}{}
+				for _, f := range of {
+					names[f.Name] = struct{}{}
+				}
+				recs, _, err = tableStore.List(p.Context, obj, names, wsID, opt)
+			} else {
+				recs, _, err = recRepo.List(p.Context, obj.ID, wsID, opt)
+			}
+			if err != nil || len(recs) == 0 {
+				return nil, nil
+			}
+			return recordNode(recs[0]), nil
 		},
 	}
 
@@ -342,6 +499,37 @@ func emptyConnection() map[string]any {
 	}
 }
 
+// parseFilter walks a nestjs-query filter, collecting an id equality (for
+// findOne) and per-field equality filters. and/or are flattened; not is skipped.
+func parseFilter(f map[string]any, idEq *string, ff map[string]string) {
+	for k, v := range f {
+		switch k {
+		case "and", "or":
+			if arr, ok := v.([]any); ok {
+				for _, e := range arr {
+					if m, ok := e.(map[string]any); ok {
+						parseFilter(m, idEq, ff)
+					}
+				}
+			}
+		case "not":
+			// negation not supported yet
+		case "id":
+			if cmp, ok := v.(map[string]any); ok {
+				if eq, ok := cmp["eq"].(string); ok {
+					*idEq = eq
+				}
+			}
+		default:
+			if cmp, ok := v.(map[string]any); ok {
+				if eq, ok := cmp["eq"]; ok && eq != nil {
+					ff[k] = fmt.Sprint(eq)
+				}
+			}
+		}
+	}
+}
+
 func gqlType(t metadata.FieldType) graphql.Output {
 	switch t {
 	case metadata.FieldNumber, metadata.FieldNumeric, metadata.FieldRating:
@@ -350,6 +538,8 @@ func gqlType(t metadata.FieldType) graphql.Output {
 		return graphql.Boolean
 	case metadata.FieldMultiSelect, metadata.FieldArray:
 		return graphql.NewList(graphql.String)
+	case "FULL_NAME":
+		return fullNameOutput
 	default:
 		return graphql.String
 	}
