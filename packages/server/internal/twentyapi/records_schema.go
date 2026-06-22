@@ -122,6 +122,7 @@ func buildCoreSchema(pool *pgxpool.Pool) (graphql.Schema, error) {
 	}
 	mutationFields := graphql.Fields{}
 
+	nodes := map[string]*graphql.Object{}
 	seen := map[string]bool{}
 	for _, o := range objs {
 		fields, err := metaRepo.ListFields(context.Background(), o.ID)
@@ -129,7 +130,7 @@ func buildCoreSchema(pool *pgxpool.Pool) (graphql.Schema, error) {
 			return graphql.Schema{}, err
 		}
 		seen[o.NamePlural] = true
-		addObjectQuery(queryFields, mutationFields, pageInfo, o, fields, coreRepo, metaRepo, recRepo, tableStore)
+		nodes[o.NameSingular] = addObjectQuery(queryFields, mutationFields, pageInfo, o, fields, coreRepo, metaRepo, recRepo, tableStore)
 	}
 	// Twenty's standard objects (people, companies, workspaceMembers): queries
 	// resolve empty (they are not DB-backed yet).
@@ -138,6 +139,11 @@ func buildCoreSchema(pool *pgxpool.Pool) (graphql.Schema, error) {
 			continue
 		}
 		addObjectQuery(queryFields, mutationFields, pageInfo, so.Object, so.Fields, coreRepo, metaRepo, recRepo, tableStore)
+	}
+
+	// Labzyn HPC pipeline: submitRun/refreshRun bridge a Run to the gateway → TAOUEY.
+	if runNode, ok := nodes["run"]; ok {
+		addRunHpcMutations(mutationFields, runNode, coreRepo, metaRepo, recRepo)
 	}
 
 	return graphql.NewSchema(graphql.SchemaConfig{
@@ -156,7 +162,7 @@ func addObjectQuery(
 	metaRepo *metadata.Repo,
 	recRepo *records.Repo,
 	tableStore *records.TableStore,
-) {
+) *graphql.Object {
 	typeName := title(o.NameSingular)
 
 	nodeFields := graphql.Fields{
@@ -419,6 +425,8 @@ func addObjectQuery(
 			return recordNode(rec), nil
 		},
 	}
+
+	return node
 }
 
 // inputFieldsFor builds the input fields for create/update (all optional + id).

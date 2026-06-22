@@ -36,13 +36,19 @@ type Job struct {
 	SubmittedAt string    `json:"submittedAt"`
 }
 
+// FileRef is one output file produced by a job.
+type FileRef struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+}
+
 // Results holds a job's outputs.
 type Results struct {
-	JobID  string   `json:"jobId"`
-	Status string   `json:"status"`
-	Stdout string   `json:"stdout"`
-	Stderr string   `json:"stderr"`
-	Files  []string `json:"files"`
+	JobID  string    `json:"jobId"`
+	Status string    `json:"status"`
+	Stdout string    `json:"stdout"`
+	Stderr string    `json:"stderr"`
+	Files  []FileRef `json:"files"`
 }
 
 // Client talks to the gateway over HTTP.
