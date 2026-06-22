@@ -175,6 +175,11 @@ func buildObjectNode(o metadata.Object, fields []metadata.Field) *objectT {
 
 	var labelID *UUID
 	for _, fld := range fields {
+		// UUID join columns are internal plumbing for relations — Twenty has no
+		// record-field renderer for raw UUIDs, so keep them out of fieldsList.
+		if fld.Type == metadata.FieldUUID {
+			continue
+		}
 		id := UUID(fld.ID)
 		if labelID == nil && fld.Type == "TEXT" {
 			labelID = &id
@@ -286,6 +291,11 @@ func userField(o metadata.Object, f metadata.Field) *fieldT {
 			SourceFieldMetadata:  relationFieldRefT{Id: UUID(f.ID), Name: f.Name},
 			TargetFieldMetadata:  relationFieldRefT{Id: UUID(rel.InverseFieldID), Name: rel.InverseField},
 		}
+		out.Settings = &JSON{Value: map[string]any{
+			"relationType":   rel.Type,
+			"onDelete":       "SET_NULL",
+			"joinColumnName": rel.JoinColumnName,
+		}}
 	} else if opts := twentyOptions(f.Options); opts != nil {
 		out.Options = &JSON{Value: opts}
 	}

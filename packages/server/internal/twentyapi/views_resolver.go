@@ -3,6 +3,8 @@ package twentyapi
 import (
 	"context"
 	"time"
+
+	"github.com/aniasse/labzyn/server/internal/metadata"
 )
 
 type viewT struct {
@@ -153,6 +155,11 @@ func (r *MetadataResolver) GetViews(ctx context.Context, args struct {
 			synthFieldID(o.ID, "updatedAt"),
 		}
 		for _, f := range fields {
+			// UUID join columns are internal plumbing; everything else (incl.
+			// relations) becomes a view field.
+			if f.Type == metadata.FieldUUID {
+				continue
+			}
 			fieldIDs = append(fieldIDs, UUID(f.ID))
 		}
 

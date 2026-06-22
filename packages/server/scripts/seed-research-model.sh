@@ -30,7 +30,7 @@ fld run '{"name":"name","type":"TEXT","label":"Name","isNullable":false}' name
 fld run '{"name":"script","type":"TEXT","label":"Script"}' script
 fld run '{"name":"status","type":"SELECT","label":"Status","options":[{"value":"PENDING","label":"Pending"},{"value":"RUNNING","label":"Running"},{"value":"COMPLETED","label":"Completed"},{"value":"FAILED","label":"Failed"}]}' status
 fld run '{"name":"partition","type":"TEXT","label":"Partition"}' partition
-fld run '{"name":"nodeHours","type":"NUMERIC","label":"Node Hours"}' nodeHours
+fld run '{"name":"nodeHours","type":"NUMBER","label":"Node Hours"}' nodeHours
 fld run '{"name":"hpcJobId","type":"TEXT","label":"HPC Job Id"}' hpcJobId
 fld run '{"name":"exitCode","type":"NUMBER","label":"Exit Code"}' exitCode
 
@@ -70,7 +70,7 @@ obj '{"nameSingular":"allocation","namePlural":"allocations","labelSingular":"Al
 fld allocation '{"name":"name","type":"TEXT","label":"Name","isNullable":false}' name
 fld allocation '{"name":"status","type":"SELECT","label":"Status","options":[{"value":"ACTIVE","label":"Active"},{"value":"EXHAUSTED","label":"Exhausted"},{"value":"EXPIRED","label":"Expired"}]}' status
 fld allocation '{"name":"partition","type":"TEXT","label":"Partition"}' partition
-fld allocation '{"name":"nodeHoursGranted","type":"NUMERIC","label":"Node Hours Granted"}' nodeHoursGranted
-fld allocation '{"name":"nodeHoursUsed","type":"NUMERIC","label":"Node Hours Used"}' nodeHoursUsed
+fld allocation '{"name":"nodeHoursGranted","type":"NUMBER","label":"Node Hours Granted"}' nodeHoursGranted
+fld allocation '{"name":"nodeHoursUsed","type":"NUMBER","label":"Node Hours Used"}' nodeHoursUsed
 
 echo "Done. Restart the server so the dynamic records schema picks up the new objects."
