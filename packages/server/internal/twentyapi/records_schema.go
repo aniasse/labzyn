@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aniasse/labzyn/server/internal/core"
+	"github.com/aniasse/labzyn/server/internal/llm"
 	"github.com/aniasse/labzyn/server/internal/metadata"
 	"github.com/aniasse/labzyn/server/internal/records"
 	"github.com/graphql-go/graphql"
@@ -83,8 +84,8 @@ func filterCmpFor(t metadata.FieldType) *graphql.InputObject {
 }
 
 // BuildCoreHandler builds the dynamic records GraphQL handler for /graphql.
-func BuildCoreHandler(pool *pgxpool.Pool) (http.Handler, error) {
-	schema, err := buildCoreSchema(pool)
+func BuildCoreHandler(pool *pgxpool.Pool, llmClient *llm.Client) (http.Handler, error) {
+	schema, err := buildCoreSchema(pool, llmClient)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +94,7 @@ func BuildCoreHandler(pool *pgxpool.Pool) (http.Handler, error) {
 
 // buildCoreSchema builds the dynamic per-object records schema (/graphql).
 // One query field + connection type per object, resolved from the records repo.
-func buildCoreSchema(pool *pgxpool.Pool) (graphql.Schema, error) {
+func buildCoreSchema(pool *pgxpool.Pool, llmClient *llm.Client) (graphql.Schema, error) {
 	coreRepo := core.NewRepo(pool)
 	metaRepo := metadata.NewRepo(pool)
 	recRepo := records.NewRepo(pool)
@@ -141,9 +142,9 @@ func buildCoreSchema(pool *pgxpool.Pool) (graphql.Schema, error) {
 		addObjectQuery(queryFields, mutationFields, pageInfo, so.Object, so.Fields, coreRepo, metaRepo, recRepo, tableStore)
 	}
 
-	// Labzyn HPC pipeline: submitRun/refreshRun bridge a Run to the gateway → TAOUEY.
+	// Labzyn HPC pipeline + AI agent: submitRun/refreshRun/planRun on the Run node.
 	if runNode, ok := nodes["run"]; ok {
-		addRunHpcMutations(mutationFields, runNode, coreRepo, metaRepo, recRepo)
+		addRunHpcMutations(mutationFields, runNode, coreRepo, metaRepo, recRepo, llmClient)
 	}
 
 	return graphql.NewSchema(graphql.SchemaConfig{

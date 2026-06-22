@@ -8,6 +8,7 @@ import (
 
 	"github.com/aniasse/labzyn/server/internal/auth"
 	"github.com/aniasse/labzyn/server/internal/core"
+	"github.com/aniasse/labzyn/server/internal/llm"
 	"github.com/aniasse/labzyn/server/internal/metadata"
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
@@ -28,7 +29,7 @@ type Server struct {
 }
 
 // NewServer constructs the Twenty-compatible GraphQL server.
-func NewServer(pool *pgxpool.Pool, jwtSecret string) (*Server, error) {
+func NewServer(pool *pgxpool.Pool, jwtSecret string, llmClient *llm.Client) (*Server, error) {
 	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers(), graphql.UseStringDescriptions()}
 	repo := core.NewRepo(pool)
 
@@ -37,7 +38,7 @@ func NewServer(pool *pgxpool.Pool, jwtSecret string) (*Server, error) {
 		return nil, err
 	}
 	// Core /graphql is the dynamic per-object records schema (graphql-go).
-	coreHandler, err := BuildCoreHandler(pool)
+	coreHandler, err := BuildCoreHandler(pool, llmClient)
 	if err != nil {
 		return nil, err
 	}

@@ -57,7 +57,7 @@ func NewServer(pool *pgxpool.Pool, jwtSecret, gatewayURL string, llmClient *llm.
 	})
 
 	// Twenty frontend contract: REST /client-config + GraphQL /graphql & /metadata.
-	tw, err := twentyapi.NewServer(pool, jwtSecret)
+	tw, err := twentyapi.NewServer(pool, jwtSecret, llmClient)
 	if err != nil {
 		panic("twentyapi schema build failed: " + err.Error())
 	}

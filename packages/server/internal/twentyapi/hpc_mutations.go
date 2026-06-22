@@ -8,6 +8,7 @@ import (
 
 	"github.com/aniasse/labzyn/server/internal/core"
 	"github.com/aniasse/labzyn/server/internal/hpc"
+	"github.com/aniasse/labzyn/server/internal/llm"
 	"github.com/aniasse/labzyn/server/internal/metadata"
 	"github.com/aniasse/labzyn/server/internal/records"
 	"github.com/graphql-go/graphql"
@@ -30,6 +31,7 @@ func addRunHpcMutations(
 	coreRepo *core.Repo,
 	metaRepo *metadata.Repo,
 	recRepo *records.Repo,
+	llmClient *llm.Client,
 ) {
 	gw := hpc.New(gatewayURL())
 
@@ -40,6 +42,51 @@ func addRunHpcMutations(
 		}
 		obj, err := metaRepo.GetObjectByPlural(ctx, wsID, "runs")
 		return wsID, obj, err
+	}
+
+	// planRun(prompt): the Labzyn AI agent. Turns a natural-language request into
+	// a Slurm script + resources, creates a Run, and (optionally) submits it.
+	mutationFields["planRun"] = &graphql.Field{
+		Type: runNode,
+		Args: graphql.FieldConfigArgument{
+			"prompt":     &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+			"autoSubmit": &graphql.ArgumentConfig{Type: graphql.Boolean},
+		},
+		Resolve: func(p graphql.ResolveParams) (any, error) {
+			wsID, obj, err := runObject(p.Context)
+			if err != nil {
+				return nil, err
+			}
+			prompt, _ := p.Args["prompt"].(string)
+			if strings.TrimSpace(prompt) == "" {
+				return nil, fmt.Errorf("prompt is required")
+			}
+			plan := generateRunPlan(p.Context, llmClient, prompt)
+
+			rec, err := recRepo.Create(p.Context, obj.ID, wsID, map[string]any{
+				"name":      plan.Name,
+				"script":    plan.Script,
+				"partition": plan.Partition,
+				"status":    "PENDING",
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			if auto, _ := p.Args["autoSubmit"].(bool); auto {
+				job, err := gw.Submit(p.Context, hpc.SubmitRequest{
+					Name:      plan.Name,
+					Script:    plan.Script,
+					Resources: hpc.Resources{Partition: plan.Partition, CPUs: plan.CPUs, GPUs: plan.GPUs, TimeMin: plan.TimeMin},
+				})
+				if err == nil {
+					rec, _ = recRepo.Update(p.Context, obj.ID, wsID, rec.ID, map[string]any{
+						"hpcJobId": job.ID, "status": mapJobStatus(job.Status),
+					})
+				}
+			}
+			return recordNode(rec), nil
+		},
 	}
 
 	// submitRun(id): submit the Run's script to the gateway, store the job id.
