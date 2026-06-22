@@ -179,7 +179,7 @@ func buildObjectNode(o metadata.Object, fields []metadata.Field) *objectT {
 		if labelID == nil && fld.Type == "TEXT" {
 			labelID = &id
 		}
-		list = append(list, userField(fld))
+		list = append(list, userField(o, fld))
 	}
 	if labelID == nil && len(list) > 0 {
 		labelID = &list[0].Id
@@ -227,7 +227,31 @@ func systemField(objectID, name, label, ftype string, created, updated DateTime)
 	}
 }
 
-func userField(f metadata.Field) *fieldT {
+// relMeta is the relation info stored in a RELATION field's options JSONB.
+type relMeta struct {
+	Type           string `json:"type"`
+	Target         string `json:"target"`
+	TargetPlural   string `json:"targetPlural"`
+	TargetObjectID string `json:"targetObjectId"`
+	InverseField   string `json:"inverseField"`
+	InverseFieldID string `json:"inverseFieldId"`
+	JoinColumnName string `json:"joinColumnName"`
+}
+
+func parseRelation(raw []byte) *relMeta {
+	if len(raw) == 0 {
+		return nil
+	}
+	var wrap struct {
+		Rel *relMeta `json:"rel"`
+	}
+	if err := json.Unmarshal(raw, &wrap); err != nil {
+		return nil
+	}
+	return wrap.Rel
+}
+
+func userField(o metadata.Object, f metadata.Field) *fieldT {
 	var desc *string
 	if f.Description != "" {
 		desc = &f.Description
@@ -254,7 +278,15 @@ func userField(f metadata.Field) *fieldT {
 	if len(f.DefaultValue) > 0 {
 		out.DefaultValue = &JSON{Value: f.DefaultValue}
 	}
-	if opts := twentyOptions(f.Options); opts != nil {
+	if rel := parseRelation(f.Options); rel != nil && f.Type == metadata.FieldRelation {
+		out.Relation = &fieldRelationT{
+			Type:                 rel.Type,
+			SourceObjectMetadata: relationObjectRefT{Id: UUID(o.ID), NameSingular: o.NameSingular, NamePlural: o.NamePlural},
+			TargetObjectMetadata: relationObjectRefT{Id: UUID(rel.TargetObjectID), NameSingular: rel.Target, NamePlural: rel.TargetPlural},
+			SourceFieldMetadata:  relationFieldRefT{Id: UUID(f.ID), Name: f.Name},
+			TargetFieldMetadata:  relationFieldRefT{Id: UUID(rel.InverseFieldID), Name: rel.InverseField},
+		}
+	} else if opts := twentyOptions(f.Options); opts != nil {
 		out.Options = &JSON{Value: opts}
 	}
 	return out

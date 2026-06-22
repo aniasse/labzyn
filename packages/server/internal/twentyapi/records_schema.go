@@ -123,7 +123,12 @@ func buildCoreSchema(pool *pgxpool.Pool, llmClient *llm.Client) (graphql.Schema,
 	}
 	mutationFields := graphql.Fields{}
 
+	// Shared type registries so relation fields can reference other objects'
+	// node/connection/filter types (resolved lazily via field thunks).
 	nodes := map[string]*graphql.Object{}
+	conns := map[string]*graphql.Object{}
+	filters := map[string]*graphql.InputObject{}
+
 	seen := map[string]bool{}
 	for _, o := range objs {
 		fields, err := metaRepo.ListFields(context.Background(), o.ID)
@@ -131,7 +136,7 @@ func buildCoreSchema(pool *pgxpool.Pool, llmClient *llm.Client) (graphql.Schema,
 			return graphql.Schema{}, err
 		}
 		seen[o.NamePlural] = true
-		nodes[o.NameSingular] = addObjectQuery(queryFields, mutationFields, pageInfo, o, fields, coreRepo, metaRepo, recRepo, tableStore)
+		addObjectQuery(queryFields, mutationFields, pageInfo, o, fields, coreRepo, metaRepo, recRepo, tableStore, nodes, conns, filters)
 	}
 	// Twenty's standard objects (people, companies, workspaceMembers): queries
 	// resolve empty (they are not DB-backed yet).
@@ -139,7 +144,7 @@ func buildCoreSchema(pool *pgxpool.Pool, llmClient *llm.Client) (graphql.Schema,
 		if seen[so.Object.NamePlural] {
 			continue
 		}
-		addObjectQuery(queryFields, mutationFields, pageInfo, so.Object, so.Fields, coreRepo, metaRepo, recRepo, tableStore)
+		addObjectQuery(queryFields, mutationFields, pageInfo, so.Object, so.Fields, coreRepo, metaRepo, recRepo, tableStore, nodes, conns, filters)
 	}
 
 	// Labzyn HPC pipeline + AI agent: submitRun/refreshRun/planRun on the Run node.
@@ -163,18 +168,33 @@ func addObjectQuery(
 	metaRepo *metadata.Repo,
 	recRepo *records.Repo,
 	tableStore *records.TableStore,
+	nodes map[string]*graphql.Object,
+	conns map[string]*graphql.Object,
+	filters map[string]*graphql.InputObject,
 ) *graphql.Object {
 	typeName := title(o.NameSingular)
 
-	nodeFields := graphql.Fields{
-		"id":        &graphql.Field{Type: graphql.ID},
-		"createdAt": &graphql.Field{Type: graphql.String},
-		"updatedAt": &graphql.Field{Type: graphql.String},
-	}
-	for _, f := range fields {
-		nodeFields[f.Name] = &graphql.Field{Type: gqlType(f.Type)}
-	}
-	node := graphql.NewObject(graphql.ObjectConfig{Name: typeName, Fields: nodeFields})
+	// Node fields are lazy so relation fields can reference other objects'
+	// types (registered as the loop progresses).
+	node := graphql.NewObject(graphql.ObjectConfig{
+		Name: typeName,
+		Fields: graphql.FieldsThunk(func() graphql.Fields {
+			nf := graphql.Fields{
+				"id":        &graphql.Field{Type: graphql.ID},
+				"createdAt": &graphql.Field{Type: graphql.String},
+				"updatedAt": &graphql.Field{Type: graphql.String},
+			}
+			for _, f := range fields {
+				if f.Type == metadata.FieldRelation {
+					addRelationField(nf, f, nodes, conns, filters, coreRepo, metaRepo, recRepo, tableStore)
+					continue
+				}
+				nf[f.Name] = &graphql.Field{Type: gqlType(f.Type)}
+			}
+			return nf
+		}),
+	})
+	nodes[o.NameSingular] = node
 
 	edge := graphql.NewObject(graphql.ObjectConfig{
 		Name: typeName + "Edge",
@@ -191,6 +211,7 @@ func addObjectQuery(
 			"totalCount": &graphql.Field{Type: graphql.Int},
 		},
 	})
+	conns[o.NameSingular] = conn
 
 	// Filter input: and/or/not + per-field comparisons (nestjs-query style).
 	var filterInput *graphql.InputObject
@@ -212,6 +233,7 @@ func addObjectQuery(
 			return m
 		}),
 	})
+	filters[o.NameSingular] = filterInput
 	orderByInput := graphql.NewInputObject(graphql.InputObjectConfig{
 		Name:   typeName + "OrderByInput",
 		Fields: graphql.InputObjectConfigFieldMap{"id": &graphql.InputObjectFieldConfig{Type: graphql.String}},
