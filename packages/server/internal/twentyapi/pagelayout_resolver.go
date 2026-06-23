@@ -1,6 +1,9 @@
 package twentyapi
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type widgetGridPositionT struct {
 	Column     *float64
@@ -36,14 +39,16 @@ type pageLayoutWidgetCanvasPositionT struct {
 	LayoutMode *string
 }
 
-type widgetPositionT struct{}
+type widgetPositionT struct {
+	vertical *pageLayoutWidgetVerticalListPositionT
+}
 
 func (*widgetPositionT) ToPageLayoutWidgetGridPosition() (*pageLayoutWidgetGridPositionT, bool) {
 	return nil, false
 }
 
-func (*widgetPositionT) ToPageLayoutWidgetVerticalListPosition() (*pageLayoutWidgetVerticalListPositionT, bool) {
-	return nil, false
+func (p *widgetPositionT) ToPageLayoutWidgetVerticalListPosition() (*pageLayoutWidgetVerticalListPositionT, bool) {
+	return p.vertical, p.vertical != nil
 }
 
 func (*widgetPositionT) ToPageLayoutWidgetCanvasPosition() (*pageLayoutWidgetCanvasPositionT, bool) {
@@ -230,7 +235,9 @@ type frontComponentConfigurationT struct {
 	FrontComponentId  *string
 }
 
-type widgetConfigurationT struct{}
+type widgetConfigurationT struct {
+	fields *fieldsConfigurationT
+}
 
 func (*widgetConfigurationT) ToBarChartConfiguration() (*barChartConfigurationT, bool) {
 	return nil, false
@@ -270,7 +277,9 @@ func (*widgetConfigurationT) ToFieldRichTextConfiguration() (*fieldRichTextConfi
 	return nil, false
 }
 
-func (*widgetConfigurationT) ToFieldsConfiguration() (*fieldsConfigurationT, bool) { return nil, false }
+func (c *widgetConfigurationT) ToFieldsConfiguration() (*fieldsConfigurationT, bool) {
+	return c.fields, c.fields != nil
+}
 
 func (*widgetConfigurationT) ToFilesConfiguration() (*filesConfigurationT, bool) { return nil, false }
 
@@ -346,6 +355,51 @@ type pageLayoutT struct {
 	Tabs                                    []*pageLayoutTabT
 }
 
-func (r *MetadataResolver) GetPageLayouts(_ context.Context, _ struct{ PageLayoutType *string }) ([]*pageLayoutT, error) {
-	return []*pageLayoutT{}, nil
+// GetPageLayouts returns a record-page layout per object so the frontend uses
+// our clean Fields layout instead of its default (whose Timeline/Tasks/Notes
+// widgets are "invalid" for objects without activity support). The frontend
+// matches a layout to an object by objectMetadataId.
+func (r *MetadataResolver) GetPageLayouts(ctx context.Context, args struct{ PageLayoutType *string }) ([]*pageLayoutT, error) {
+	if args.PageLayoutType != nil && *args.PageLayoutType != "RECORD_PAGE" {
+		return []*pageLayoutT{}, nil
+	}
+	wsID, err := r.core.DefaultWorkspaceID(ctx, userIDFromCtx(ctx))
+	if err != nil {
+		return []*pageLayoutT{}, nil
+	}
+	objs, err := r.meta.ListObjects(ctx, wsID)
+	if err != nil {
+		return []*pageLayoutT{}, nil
+	}
+
+	now := DateTime{time.Now()}
+	vlist, ftype, idx := "VERTICAL_LIST", "FIELDS", "0"
+	col, row, span := 0.0, 0.0, 12.0
+	layouts := make([]*pageLayoutT, 0, len(objs))
+
+	for _, o := range objs {
+		layoutID := synthFieldID(o.ID, "record-page-layout")
+		tabID := synthFieldID(o.ID, "record-page-tab-home")
+		objID := UUID(o.ID)
+		icon := "IconLayoutGrid"
+
+		widget := &pageLayoutWidgetT{
+			Id: synthFieldID(o.ID, "record-page-widget-fields"), Title: "Fields", Type: "FIELDS",
+			IsActive: true, CreatedAt: now, UpdatedAt: now, PageLayoutTabId: tabID,
+			GridPosition:  widgetGridPositionT{Column: &col, Row: &row, ColumnSpan: &span, RowSpan: &span},
+			Position:      &widgetPositionT{vertical: &pageLayoutWidgetVerticalListPositionT{LayoutMode: &vlist, Index: &idx}},
+			Configuration: &widgetConfigurationT{fields: &fieldsConfigurationT{ConfigurationType: &ftype}},
+		}
+		tab := &pageLayoutTabT{
+			Id: tabID, Title: "Home", Icon: &icon, Position: 0, LayoutMode: vlist,
+			Widgets: []*pageLayoutWidgetT{widget}, PageLayoutId: layoutID, IsActive: true,
+			CreatedAt: now, UpdatedAt: now,
+		}
+		layouts = append(layouts, &pageLayoutT{
+			Id: layoutID, Name: o.LabelSingular + " Record Page", Type: "RECORD_PAGE",
+			ObjectMetadataId: &objID, CreatedAt: now, UpdatedAt: now,
+			Tabs: []*pageLayoutTabT{tab},
+		})
+	}
+	return layouts, nil
 }
