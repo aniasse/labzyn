@@ -29,7 +29,7 @@ labzyn/
 - **API REST générique** pilotée par le catalogue (`/api/v1/{object}`).
 - **MCP** (JSON-RPC/SSE) → outils CRUD auto + `submit_slurm_job` → gateway `:8088`.
 
-## Lancer le serveur (Jalon 1)
+## Lancer le serveur
 
 ```bash
 cd packages/server
