@@ -5,7 +5,6 @@ NL → jobs Slurm (TAOUEY) → résultats reproductibles, avec un modèle de don
 **métadonnées-driven** (objets & champs dynamiques) inspiré de
 [Twenty](https://twenty.com) — réimplémenté en propre, **backend Go haute performance**.
 
-> Reconstruction from-scratch (20 juin 2026) remplaçant le fork Twenty.
 > Étude d'architecture : [`docs/architecture-study.md`](docs/architecture-study.md).
 
 ## Monorepo
