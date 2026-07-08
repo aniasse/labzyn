@@ -41,4 +41,4 @@ Postgres requis (réutilise l'instance locale, base `labzyn`).
 
 ## Stack
 
-Go 1.21+ · pgx v5 · chi · Postgres 16 · (front : React/Vite/shadcn).
+Go 1.21+ · pgx v5 · chi · Postgres 16 · (front : React/Vite/shadcn)
