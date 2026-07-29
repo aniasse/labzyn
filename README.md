@@ -30,11 +30,6 @@ labzyn/
 
 ## Lancer le serveur
 
-```bash
-cd packages/server
-cp ../../.env.example .env       # ajuster si besoin
-go run ./cmd/server
-# -> http://localhost:4000/healthz
 ```
 
 Postgres requis (réutilise l'instance locale, base `labzyn`).
